@@ -1,0 +1,1299 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>물풍선 배틀</title>
+    <style>
+      :root {
+        --bg1: #1d2147;
+        --bg2: #0f1230;
+        --panel: rgba(16, 20, 48, 0.88);
+        --text: #f3f5ff;
+        --muted: #aab2d8;
+        --p1: #ff5a6e;
+        --p2: #4fa3ff;
+        --solo: #ffb627;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: radial-gradient(circle at 50% 0%, var(--bg1), var(--bg2));
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Malgun Gothic", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        user-select: none;
+      }
+      #wrap {
+        width: min(96vw, calc((100vh - 90px) * 720 / 624));
+      }
+      #hud {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+        height: 56px;
+        padding: 0 4px;
+        font-size: 15px;
+      }
+      #hudL {
+        text-align: left;
+      }
+      #hudR {
+        text-align: right;
+      }
+      #hudC {
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: 0.5px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 700;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .stats {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 2px;
+      }
+      #stage {
+        position: relative;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow:
+          0 12px 40px rgba(0, 0, 0, 0.5),
+          0 0 0 4px #2b3170;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: rgba(10, 14, 40, 0.62);
+        backdrop-filter: blur(2px);
+        padding: 16px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      h1 {
+        font-size: clamp(30px, 6vw, 52px);
+        margin: 0 0 6px;
+        text-shadow:
+          0 4px 0 #2a6fc9,
+          0 8px 20px rgba(0, 0, 0, 0.4);
+      }
+      h2 {
+        font-size: clamp(26px, 5vw, 42px);
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 22px;
+        font-size: 16px;
+      }
+      .modes {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      button {
+        font: inherit;
+        color: #fff;
+        border: 0;
+        cursor: pointer;
+        border-radius: 14px;
+        padding: 14px 26px;
+        font-size: 19px;
+        font-weight: 800;
+        background: linear-gradient(#5fb2ff, #2f7fe0);
+        box-shadow: 0 5px 0 #1d4f99;
+        transition: transform 0.08s;
+      }
+      button:hover {
+        transform: translateY(-2px);
+      }
+      button:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #1d4f99;
+      }
+      button small {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0.85;
+        margin-top: 4px;
+      }
+      button.solo {
+        background: linear-gradient(#ffcb5c, #f29b12);
+        box-shadow: 0 5px 0 #b06b00;
+      }
+      button.alt {
+        background: linear-gradient(#8a93c4, #5d6699);
+        box-shadow: 0 5px 0 #3c4370;
+      }
+      .help {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        max-width: 620px;
+        font-size: 13.5px;
+        text-align: left;
+      }
+      .help div {
+        background: var(--panel);
+        border-radius: 12px;
+        padding: 12px 14px;
+        line-height: 1.6;
+      }
+      .help b {
+        font-size: 14.5px;
+      }
+      kbd {
+        background: #2d3470;
+        border: 1px solid #4a52a0;
+        border-bottom-width: 3px;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-size: 12px;
+        font-family: inherit;
+      }
+      .btns {
+        display: flex;
+        gap: 14px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .foot {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      @media (max-width: 560px) {
+        .help {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <header id="hud">
+        <div id="hudL"></div>
+        <div id="hudC"></div>
+        <div id="hudR"></div>
+      </header>
+      <div id="stage">
+        <canvas id="game"></canvas>
+
+        <div id="menu" class="overlay">
+          <h1>💦 물풍선 배틀</h1>
+          <p class="sub">물풍선을 피하고, 상대를 물방울에 가둬라!</p>
+          <div class="modes">
+            <button class="solo" data-mode="solo">
+              1인 플레이<small>쏟아지는 물풍선 피하기 · <kbd>1</kbd></small>
+            </button>
+            <button data-mode="duo">
+              2인 플레이<small>한 키보드로 대결 · <kbd>2</kbd></small>
+            </button>
+          </div>
+          <div class="help">
+            <div>
+              <b>🟡 1인 플레이</b><br />
+              <kbd>WASD</kbd> 또는 <kbd>방향키</kbd>로 이동<br />
+              맵 곳곳에 물풍선이 랜덤으로 생겨요. 물줄기를 피해 최대한 오래
+              버티세요! 시간이 갈수록 더 많이, 더 길게 터집니다.
+            </div>
+            <div>
+              <b>🔴 P1 vs 🔵 P2</b><br />
+              P1: <kbd>WASD</kbd> 이동 · <kbd>왼쪽 Shift</kbd> 물풍선<br />
+              P2: <kbd>방향키</kbd> 이동 · <kbd>오른쪽 Shift</kbd> 물풍선<br />
+              상자를 부숴 아이템(풍선+, 물줄기+, 속도+)을 얻으세요. 물줄기에
+              맞으면 물방울에 갇히고, 상대가 건드리거나 시간이 지나면 터져서
+              패배!
+            </div>
+          </div>
+          <p class="foot"><kbd>P</kbd> 일시정지 · <kbd>Esc</kbd> 메뉴로</p>
+        </div>
+
+        <div id="over" class="overlay hidden">
+          <h2 id="overTitle"></h2>
+          <p class="sub" id="overSub"></p>
+          <div class="btns">
+            <button id="againBtn">다시하기 <small>Enter</small></button>
+            <button id="menuBtn" class="alt">메뉴 <small>Esc</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        // ===== 상수 =====
+        const T = 48,
+          COLS = 15,
+          ROWS = 13;
+        const W = COLS * T,
+          H = ROWS * T;
+        const HALF = T * 0.34; // 플레이어 충돌 박스 절반 크기
+        const FUSE = 2.5; // 2인 물풍선 폭발 시간
+        const SOLO_FUSE = 2.2; // 1인 랜덤 물풍선 폭발 시간
+        const FLAME_T = 0.5; // 물줄기 지속 시간
+        const DIRS = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ];
+
+        const cv = document.getElementById("game");
+        cv.width = W;
+        cv.height = H;
+        const ctx = cv.getContext("2d");
+
+        const ARROWS = {
+          ArrowUp: [0, -1],
+          ArrowDown: [0, 1],
+          ArrowLeft: [-1, 0],
+          ArrowRight: [1, 0],
+        };
+        const WASD = {
+          KeyW: [0, -1],
+          KeyS: [0, 1],
+          KeyA: [-1, 0],
+          KeyD: [1, 0],
+        };
+        const CFG = {
+          p1: {
+            name: "P1",
+            color: "#ff5a6e",
+            dark: "#b8324a",
+            light: "#ffd0d6",
+            dirs: WASD,
+            bomb: "ShiftLeft",
+            start: [0, 0],
+          },
+          p2: {
+            name: "P2",
+            color: "#4fa3ff",
+            dark: "#2763b8",
+            light: "#d3e8ff",
+            dirs: ARROWS,
+            bomb: "ShiftRight",
+            start: [COLS - 1, ROWS - 1],
+          },
+          solo: {
+            name: "나",
+            color: "#ffb627",
+            dark: "#c27c00",
+            light: "#fff0c8",
+            dirs: { ...WASD, ...ARROWS },
+            bomb: null,
+            start: [7, 6],
+          },
+        };
+
+        // ===== 상태 =====
+        let state = "menu"; // menu | play | over
+        let paused = false;
+        let G = null;
+        let wins = { P1: 0, P2: 0 };
+        let best = 0;
+        try {
+          best = parseFloat(localStorage.getItem("wb_best") || "0") || 0;
+        } catch (e) {}
+
+        const held = []; // 눌린 순서대로 키 기록 (최근 방향 우선)
+
+        // ===== 유틸 =====
+        const rand = (a, b) => a + Math.random() * (b - a);
+        const randi = (n) => Math.floor(Math.random() * n);
+        const inB = (c, r) => c >= 0 && r >= 0 && c < COLS && r < ROWS;
+        const cellOf = (p) => [Math.floor(p.x / T), Math.floor(p.y / T)];
+        const grid2 = (v) =>
+          Array.from({ length: ROWS }, () => Array(COLS).fill(v));
+
+        function rr(x, y, w, h, r) {
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.arcTo(x + w, y, x + w, y + h, r);
+          ctx.arcTo(x + w, y + h, x, y + h, r);
+          ctx.arcTo(x, y + h, x, y, r);
+          ctx.arcTo(x, y, x + w, y, r);
+          ctx.closePath();
+        }
+
+        // ===== 게임 생성 =====
+        function newGame(mode) {
+          const g = {
+            mode,
+            time: 0,
+            survive: 0,
+            spawnT: 1.0,
+            ending: -1,
+            shake: 0,
+            grid: grid2(0),
+            items: grid2(null),
+            flame: grid2(null),
+            balloons: [],
+            particles: [],
+            breaking: [],
+            players: [],
+          };
+          const starts =
+            mode === "duo" ? [CFG.p1.start, CFG.p2.start] : [CFG.solo.start];
+          const nearStart = (c, r) =>
+            starts.some(([sc, sr]) => Math.abs(sc - c) + Math.abs(sr - r) <= 1);
+
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++) {
+              if (c % 2 === 1 && r % 2 === 1) {
+                g.grid[r][c] = 1;
+                continue;
+              }
+              if (mode === "duo" && !nearStart(c, r) && Math.random() < 0.72) {
+                g.grid[r][c] = 2;
+                if (Math.random() < 0.42) {
+                  const x = Math.random();
+                  g.items[r][c] =
+                    x < 0.4 ? "bomb" : x < 0.8 ? "range" : "speed";
+                }
+              }
+            }
+          if (mode === "duo")
+            g.players = [makePlayer(CFG.p1), makePlayer(CFG.p2)];
+          if (mode === "solo") {
+            const p = makePlayer(CFG.solo);
+            p.speed = 175;
+            p.maxB = 0;
+            g.players = [p];
+          }
+          return g;
+        }
+
+        function makePlayer(cfg) {
+          return {
+            cfg,
+            x: cfg.start[0] * T + T / 2,
+            y: cfg.start[1] * T + T / 2,
+            speed: 150,
+            maxB: 1,
+            range: 2,
+            active: 0,
+            state: "normal",
+            trapT: 0,
+            trapMax: 1,
+            deadT: 0,
+            face: [0, 1],
+            moving: false,
+            walkT: 0,
+            pass: new Set(),
+          };
+        }
+
+        // ===== 충돌 / 이동 =====
+        function balloonAt(c, r) {
+          return G.balloons.find((b) => b.c === c && b.r === r);
+        }
+
+        function blockedCell(c, r, p) {
+          if (!inB(c, r) || G.grid[r][c] !== 0) return true;
+          const b = balloonAt(c, r);
+          return !!(b && !p.pass.has(b));
+        }
+
+        function canOccupy(x, y, p) {
+          const c0 = Math.floor((x - HALF) / T),
+            c1 = Math.floor((x + HALF - 0.01) / T);
+          const r0 = Math.floor((y - HALF) / T),
+            r1 = Math.floor((y + HALF - 0.01) / T);
+          for (let r = r0; r <= r1; r++)
+            for (let c = c0; c <= c1; c++)
+              if (blockedCell(c, r, p)) return false;
+          return true;
+        }
+
+        function overlapsCell(p, c, r) {
+          return (
+            p.x + HALF > c * T &&
+            p.x - HALF < (c + 1) * T &&
+            p.y + HALF > r * T &&
+            p.y - HALF < (r + 1) * T
+          );
+        }
+
+        function step(p, dx, dy, s) {
+          if (canOccupy(p.x + dx * s, p.y + dy * s, p)) {
+            p.x += dx * s;
+            p.y += dy * s;
+            return;
+          }
+          // 모서리에 걸렸을 때 자동으로 줄 맞춤 (코너 미끄러짐)
+          if (dx !== 0) {
+            const r = Math.floor(p.y / T),
+              off = p.y - (r * T + T / 2);
+            const nc = Math.floor((p.x + dx * (HALF + s)) / T);
+            if (Math.abs(off) > 0.01 && !blockedCell(nc, r, p)) {
+              const ny = p.y - Math.sign(off) * Math.min(Math.abs(off), s);
+              if (canOccupy(p.x, ny, p)) p.y = ny;
+            }
+          } else {
+            const c = Math.floor(p.x / T),
+              off = p.x - (c * T + T / 2);
+            const nr = Math.floor((p.y + dy * (HALF + s)) / T);
+            if (Math.abs(off) > 0.01 && !blockedCell(c, nr, p)) {
+              const nx = p.x - Math.sign(off) * Math.min(Math.abs(off), s);
+              if (canOccupy(nx, p.y, p)) p.x = nx;
+            }
+          }
+        }
+
+        function movePlayer(p, dx, dy, dist) {
+          while (dist > 0) {
+            const s = Math.min(dist, 3);
+            dist -= s;
+            step(p, dx, dy, s);
+          }
+        }
+
+        function dirOf(p) {
+          for (let i = held.length - 1; i >= 0; i--) {
+            const d = p.cfg.dirs[held[i]];
+            if (d) return d;
+          }
+          return null;
+        }
+
+        // ===== 물풍선 =====
+        function placeBalloon(p) {
+          if (p.state !== "normal" || p.active >= p.maxB) return;
+          const [c, r] = cellOf(p);
+          if (G.grid[r][c] !== 0 || balloonAt(c, r)) return;
+          addBalloon(c, r, FUSE, p.range, p);
+          p.active++;
+        }
+
+        function addBalloon(c, r, fuse, range, owner) {
+          const b = { c, r, timer: fuse, fuse, range, owner, done: false };
+          G.balloons.push(b);
+          for (const q of G.players)
+            if (q.state !== "dead" && overlapsCell(q, c, r)) q.pass.add(b);
+          return b;
+        }
+
+        function explode(b) {
+          if (b.done) return;
+          b.done = true;
+          G.balloons.splice(G.balloons.indexOf(b), 1);
+          if (b.owner) b.owner.active--;
+          setFlame(b.c, b.r, "c", 0, 0, false, false);
+          for (const [dx, dy] of DIRS) {
+            for (let i = 1; i <= b.range; i++) {
+              const c = b.c + dx * i,
+                r = b.r + dy * i;
+              if (!inB(c, r) || G.grid[r][c] === 1) break;
+              const kind = dx ? "h" : "v";
+              if (G.grid[r][c] === 2) {
+                G.grid[r][c] = 0;
+                G.breaking.push({ c, r, t: 0 });
+                burst(c * T + T / 2, r * T + T / 2, "#c98243", 10, 120);
+                setFlame(c, r, kind, dx, dy, true, true);
+                break;
+              }
+              const ob = balloonAt(c, r);
+              setFlame(c, r, kind, dx, dy, i === b.range || !!ob, false);
+              if (ob) {
+                ob.timer = Math.min(ob.timer, 0.06);
+                break;
+              }
+            }
+          }
+          burst(b.c * T + T / 2, b.r * T + T / 2, "#bfe9ff", 14, 160);
+          G.shake = Math.max(G.shake, 5);
+        }
+
+        function setFlame(c, r, kind, dx, dy, end, fromBox) {
+          if (!fromBox && G.items[r][c]) {
+            G.items[r][c] = null;
+            burst(c * T + T / 2, r * T + T / 2, "#ffffff", 8, 90);
+          }
+          const cur = G.flame[r][c];
+          if (cur) {
+            cur.t = FLAME_T;
+            if (cur.kind !== kind) {
+              cur.kind = "c";
+              cur.end = false;
+            } else cur.end = cur.end && end;
+            return;
+          }
+          G.flame[r][c] = { t: FLAME_T, kind, dx, dy, end };
+        }
+
+        function spawnSoloBalloons() {
+          const t = G.time;
+          const n = Math.min(1 + Math.floor(t / 25), 4);
+          const maxR = Math.min(2 + Math.floor(t / 15), 7);
+          const free = [];
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++)
+              if (G.grid[r][c] === 0 && !balloonAt(c, r) && !G.flame[r][c])
+                free.push([c, r]);
+          for (let k = 0; k < n && free.length; k++) {
+            const [c, r] = free.splice(randi(free.length), 1)[0];
+            addBalloon(c, r, SOLO_FUSE, 1 + randi(maxR), null);
+          }
+        }
+
+        // ===== 플레이어 상태 =====
+        function trap(p) {
+          p.state = "trapped";
+          p.trapMax = p.trapT = G.mode === "solo" ? 1.0 : 3.0;
+        }
+
+        function pop(p) {
+          p.state = "dead";
+          p.deadT = 0;
+          burst(p.x, p.y - 6, "#d7f1ff", 26, 220);
+          burst(p.x, p.y - 6, p.cfg.color, 10, 140);
+          G.shake = Math.max(G.shake, 8);
+        }
+
+        function applyItem(p, it) {
+          if (it === "bomb") p.maxB = Math.min(p.maxB + 1, 7);
+          if (it === "range") p.range = Math.min(p.range + 1, 8);
+          if (it === "speed") p.speed = Math.min(p.speed + 22, 260);
+        }
+
+        function updatePlayer(p, dt) {
+          if (p.state === "dead") {
+            p.deadT += dt;
+            return;
+          }
+          const d = dirOf(p);
+          p.moving = !!d;
+          if (d) {
+            p.face = d;
+            movePlayer(
+              p,
+              d[0],
+              d[1],
+              (p.state === "trapped" ? 32 : p.speed) * dt,
+            );
+            p.walkT += dt;
+          }
+          for (const b of p.pass)
+            if (b.done || !overlapsCell(p, b.c, b.r)) p.pass.delete(b);
+          if (p.state === "trapped") {
+            p.trapT -= dt;
+            if (p.trapT <= 0) pop(p);
+          }
+        }
+
+        // ===== 업데이트 =====
+        function update(dt) {
+          G.time += dt;
+          G.shake = Math.max(0, G.shake - dt * 30);
+
+          if (G.mode === "solo" && G.players[0].state !== "dead")
+            G.survive += dt;
+
+          if (G.mode === "solo" && G.players[0].state === "normal") {
+            G.spawnT -= dt;
+            if (G.spawnT <= 0) {
+              spawnSoloBalloons();
+              G.spawnT = Math.max(0.28, 1.1 - G.time * 0.018);
+            }
+          }
+
+          for (const p of G.players) updatePlayer(p, dt);
+
+          for (const b of G.balloons.slice()) {
+            b.timer -= dt;
+            if (b.timer <= 0) explode(b);
+          }
+
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++) {
+              const f = G.flame[r][c];
+              if (f && (f.t -= dt) <= 0) G.flame[r][c] = null;
+            }
+
+          for (const p of G.players) {
+            if (p.state !== "normal") continue;
+            const [c, r] = cellOf(p);
+            if (G.flame[r][c]) {
+              trap(p);
+              continue;
+            }
+            const it = G.items[r][c];
+            if (it && G.grid[r][c] === 0) {
+              applyItem(p, it);
+              G.items[r][c] = null;
+              burst(c * T + T / 2, r * T + T / 2, "#fff38a", 10, 110);
+            }
+          }
+
+          // 2인: 갇힌 상대를 건드리면 터짐
+          if (G.mode === "duo") {
+            for (const p of G.players) {
+              if (p.state !== "trapped") continue;
+              for (const q of G.players)
+                if (
+                  q !== p &&
+                  q.state === "normal" &&
+                  Math.hypot(q.x - p.x, q.y - p.y) < T * 0.65
+                )
+                  pop(p);
+            }
+          }
+
+          for (const b of G.breaking) b.t += dt;
+          G.breaking = G.breaking.filter((b) => b.t < 0.3);
+          for (const pt of G.particles) {
+            pt.t += dt;
+            pt.x += pt.vx * dt;
+            pt.y += pt.vy * dt;
+            pt.vx *= 0.9;
+            pt.vy *= 0.9;
+          }
+          G.particles = G.particles.filter((pt) => pt.t < pt.life);
+
+          checkEnd(dt);
+        }
+
+        function checkEnd(dt) {
+          if (state !== "play") return;
+          if (G.ending < 0) {
+            if (G.mode === "solo" && G.players[0].state === "dead") {
+              G.ending = 1.0;
+              G.result = { time: G.survive };
+            }
+            if (G.mode === "duo") {
+              const alive = G.players.filter((p) => p.state !== "dead");
+              const trapped = G.players.some((p) => p.state === "trapped");
+              if (alive.length <= 1 && !trapped) {
+                G.ending = 1.3;
+                const w = alive[0] || null;
+                if (w) wins[w.cfg.name]++;
+                G.result = { winner: w };
+              }
+            }
+          } else {
+            G.ending -= dt;
+            if (G.ending <= 0) showOver();
+          }
+        }
+
+        function burst(x, y, color, n, spd) {
+          for (let i = 0; i < n; i++) {
+            const a = rand(0, Math.PI * 2),
+              v = rand(spd * 0.3, spd);
+            G.particles.push({
+              x,
+              y,
+              vx: Math.cos(a) * v,
+              vy: Math.sin(a) * v,
+              t: 0,
+              life: rand(0.35, 0.7),
+              color,
+              size: rand(2.5, 5.5),
+            });
+          }
+        }
+
+        // ===== 그리기 =====
+        function render() {
+          ctx.save();
+          if (G.shake > 0)
+            ctx.translate(rand(-G.shake, G.shake), rand(-G.shake, G.shake));
+
+          // 바닥
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++) {
+              ctx.fillStyle = (r + c) % 2 ? "#86d36f" : "#7bc964";
+              ctx.fillRect(c * T, r * T, T, T);
+            }
+          ctx.fillStyle = "rgba(255,255,255,.08)";
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++)
+              if ((c * 7 + r * 13) % 5 === 0) {
+                ctx.fillRect(c * T + 10, r * T + 30, 3, 6);
+                ctx.fillRect(c * T + 15, r * T + 28, 3, 8);
+              }
+
+          // 아이템
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++)
+              if (G.items[r][c] && G.grid[r][c] === 0)
+                drawItem(c, r, G.items[r][c]);
+
+          // 부서지는 상자
+          for (const b of G.breaking) {
+            const k = 1 - b.t / 0.3;
+            ctx.save();
+            ctx.globalAlpha = k;
+            ctx.translate(b.c * T + T / 2, b.r * T + T / 2);
+            ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
+            drawBox(-T / 2, -T / 2);
+            ctx.restore();
+          }
+
+          for (const b of G.balloons) drawBalloon(b);
+
+          // 물줄기
+          for (let r = 0; r < ROWS; r++)
+            for (let c = 0; c < COLS; c++)
+              if (G.flame[r][c]) drawFlame(c, r, G.flame[r][c]);
+
+          // 블록 + 플레이어 (행 순서대로 그려서 겹침 처리)
+          for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+              if (G.grid[r][c] === 1) drawWall(c * T, r * T);
+              else if (G.grid[r][c] === 2) drawBox(c * T, r * T);
+            }
+            for (const p of G.players)
+              if (Math.floor(p.y / T) === r) drawPlayer(p);
+          }
+
+          for (const pt of G.particles) {
+            ctx.globalAlpha = 1 - pt.t / pt.life;
+            ctx.fillStyle = pt.color;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+          ctx.restore();
+
+          if (paused) {
+            ctx.fillStyle = "rgba(10,14,40,.55)";
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = "#fff";
+            ctx.font = "800 44px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("일시정지", W / 2, H / 2 - 10);
+            ctx.font = "500 18px sans-serif";
+            ctx.fillText("P를 눌러 계속하기", W / 2, H / 2 + 34);
+          }
+        }
+
+        function drawWall(x, y) {
+          ctx.fillStyle = "#4e586e";
+          rr(x + 3, y + 5, T - 6, T - 7, 9);
+          ctx.fill();
+          ctx.fillStyle = "#8f9ab2";
+          rr(x + 3, y + 2, T - 6, T - 14, 9);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,.28)";
+          rr(x + 9, y + 7, T - 26, 6, 3);
+          ctx.fill();
+          ctx.fillStyle = "rgba(0,0,0,.12)";
+          ctx.beginPath();
+          ctx.arc(x + T - 15, y + 20, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function drawBox(x, y) {
+          ctx.fillStyle = "#8c4f1f";
+          rr(x + 3, y + 5, T - 6, T - 7, 6);
+          ctx.fill();
+          ctx.fillStyle = "#d6914c";
+          rr(x + 3, y + 2, T - 6, T - 12, 6);
+          ctx.fill();
+          ctx.strokeStyle = "#a3622a";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x + 8, y + 8);
+          ctx.lineTo(x + T - 8, y + T - 16);
+          ctx.moveTo(x + T - 8, y + 8);
+          ctx.lineTo(x + 8, y + T - 16);
+          ctx.stroke();
+          ctx.strokeStyle = "#b8743a";
+          ctx.lineWidth = 2;
+          rr(x + 6, y + 5, T - 12, T - 18, 4);
+          ctx.stroke();
+        }
+
+        function drawBalloon(b) {
+          const x = b.c * T + T / 2,
+            y = b.r * T + T / 2;
+          const urgent = b.timer < 0.7;
+          const s =
+            1 + Math.sin(G.time * (urgent ? 32 : 9)) * (urgent ? 0.1 : 0.05);
+          const base = b.owner ? b.owner.cfg.color : "#3fa9f5";
+          const light = b.owner ? b.owner.cfg.light : "#cdeeff";
+          const rad = T * 0.34 * s;
+          ctx.fillStyle = "rgba(0,0,0,.18)";
+          ctx.beginPath();
+          ctx.ellipse(
+            x,
+            y + T * 0.36,
+            rad * 0.85,
+            rad * 0.28,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+          const g = ctx.createRadialGradient(
+            x - rad * 0.35,
+            y - rad * 0.4,
+            rad * 0.1,
+            x,
+            y,
+            rad,
+          );
+          g.addColorStop(0, light);
+          g.addColorStop(1, base);
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y + 2, rad, 0, Math.PI * 2);
+          ctx.fill();
+          // 매듭
+          ctx.fillStyle = base;
+          ctx.beginPath();
+          ctx.moveTo(x - 5, y - rad - 2);
+          ctx.lineTo(x + 5, y - rad - 2);
+          ctx.lineTo(x, y - rad + 6);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,.7)";
+          ctx.beginPath();
+          ctx.ellipse(
+            x - rad * 0.35,
+            y - rad * 0.3,
+            rad * 0.22,
+            rad * 0.13,
+            -0.6,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+          if (urgent && Math.floor(G.time * 16) % 2 === 0) {
+            ctx.fillStyle = "rgba(255,255,255,.35)";
+            ctx.beginPath();
+            ctx.arc(x, y + 2, rad, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // 남은 시간 링
+          ctx.strokeStyle = "rgba(255,255,255,.85)";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(
+            x,
+            y + 2,
+            rad + 4,
+            -Math.PI / 2,
+            -Math.PI / 2 + Math.PI * 2 * (b.timer / b.fuse),
+          );
+          ctx.stroke();
+        }
+
+        function drawFlame(c, r, f) {
+          const x = c * T,
+            y = r * T,
+            cx = x + T / 2,
+            cy = y + T / 2;
+          ctx.globalAlpha = Math.min(1, f.t / 0.15);
+          const wob = 1 + Math.sin(G.time * 35 + c * 1.7 + r * 2.3) * 0.08;
+          const outer = T * 0.62 * wob,
+            inner = T * 0.28 * wob;
+          const layer = (th, color) => {
+            ctx.fillStyle = color;
+            if (f.kind === "c") {
+              ctx.beginPath();
+              ctx.arc(cx, cy, th * 0.72, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillRect(x, cy - th / 2, T, th);
+              ctx.fillRect(cx - th / 2, y, th, T);
+            } else if (!f.end) {
+              if (f.kind === "h") ctx.fillRect(x, cy - th / 2, T, th);
+              else ctx.fillRect(cx - th / 2, y, th, T);
+            } else {
+              // 끝부분: 들어온 방향에서 가운데까지 + 둥근 끝
+              if (f.dx > 0) ctx.fillRect(x, cy - th / 2, T / 2, th);
+              if (f.dx < 0) ctx.fillRect(cx, cy - th / 2, T / 2, th);
+              if (f.dy > 0) ctx.fillRect(cx - th / 2, y, th, T / 2);
+              if (f.dy < 0) ctx.fillRect(cx - th / 2, cy, th, T / 2);
+              ctx.beginPath();
+              ctx.arc(cx, cy, th * 0.62, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          };
+          layer(outer, "rgba(56,170,255,.85)");
+          layer(outer * 0.72, "rgba(140,215,255,.95)");
+          layer(inner, "#ffffff");
+          ctx.globalAlpha = 1;
+        }
+
+        function drawItem(c, r, it) {
+          const x = c * T + T / 2,
+            y = r * T + T / 2 + Math.sin(G.time * 4 + c + r) * 3;
+          ctx.fillStyle = "rgba(0,0,0,.15)";
+          ctx.beginPath();
+          ctx.ellipse(x, r * T + T - 7, 13, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          const bg = { bomb: "#5b6cff", range: "#18b4c9", speed: "#ff8a1f" }[
+            it
+          ];
+          ctx.fillStyle = bg;
+          rr(x - 16, y - 16, 32, 32, 9);
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2.5;
+          rr(x - 16, y - 16, 32, 32, 9);
+          ctx.stroke();
+          ctx.fillStyle = "#fff";
+          if (it === "bomb") {
+            ctx.beginPath();
+            ctx.arc(x - 2, y + 2, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x - 6, y - 7);
+            ctx.lineTo(x + 2, y - 7);
+            ctx.lineTo(x - 2, y - 3);
+            ctx.fill();
+          } else if (it === "range") {
+            ctx.beginPath();
+            ctx.moveTo(x - 2, y - 11);
+            ctx.bezierCurveTo(x + 7, y - 1, x + 7, y + 9, x - 2, y + 9);
+            ctx.bezierCurveTo(x - 11, y + 9, x - 11, y - 1, x - 2, y - 11);
+            ctx.fill();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(x + 3, y - 12);
+            ctx.lineTo(x - 8, y + 2);
+            ctx.lineTo(x - 1, y + 2);
+            ctx.lineTo(x - 4, y + 12);
+            ctx.lineTo(x + 8, y - 3);
+            ctx.lineTo(x + 1, y - 3);
+            ctx.closePath();
+            ctx.fill();
+          }
+          if (it !== "speed") {
+            // 작은 +
+            ctx.fillStyle = "#ffe14d";
+            ctx.fillRect(x + 6, y - 12, 3, 9);
+            ctx.fillRect(x + 3, y - 9, 9, 3);
+          }
+        }
+
+        function drawCharacter(p, x, y, scale) {
+          const cfg = p.cfg,
+            [fx, fy] = p.face;
+          const bob = p.moving ? Math.abs(Math.sin(p.walkT * 14)) * 3 : 0;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(scale, scale);
+          // 발
+          const step = p.moving ? Math.sin(p.walkT * 14) * 4 : 0;
+          ctx.fillStyle = cfg.dark;
+          ctx.beginPath();
+          ctx.ellipse(-8, 15 + step * 0.3, 6, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(8, 15 - step * 0.3, 6, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // 몸
+          const by = -2 - bob;
+          ctx.fillStyle = cfg.color;
+          ctx.beginPath();
+          ctx.arc(0, by, 17, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = cfg.dark;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          // 머리 위 새싹
+          ctx.fillStyle = "#4fbf5a";
+          ctx.beginPath();
+          ctx.ellipse(-5, by - 19, 6, 3, -0.6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(5, by - 19, 6, 3, 0.6, 0, Math.PI * 2);
+          ctx.fill();
+          if (fy >= 0 || fx !== 0) {
+            // 얼굴
+            const ox = fx * 5,
+              oy = fy * 3;
+            ctx.fillStyle = cfg.light;
+            ctx.beginPath();
+            ctx.ellipse(ox, by + 3 + oy, 12, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#222";
+            ctx.beginPath();
+            ctx.ellipse(ox - 5, by + 1 + oy, 2.4, 3.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(ox + 5, by + 1 + oy, 2.4, 3.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "rgba(255,120,140,.55)";
+            ctx.beginPath();
+            ctx.arc(ox - 9, by + 7 + oy, 2.6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(ox + 9, by + 7 + oy, 2.6, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = "rgba(255,255,255,.25)";
+            ctx.beginPath();
+            ctx.ellipse(0, by - 4, 9, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function drawPlayer(p) {
+          if (p.state === "dead") {
+            if (p.deadT > 1) return;
+            ctx.globalAlpha = 1 - p.deadT;
+            drawCharacter(p, p.x, p.y - p.deadT * 30, 0.8);
+            ctx.globalAlpha = 1;
+            return;
+          }
+          // 그림자
+          ctx.fillStyle = "rgba(0,0,0,.2)";
+          ctx.beginPath();
+          ctx.ellipse(p.x, p.y + 17, 15, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          if (p.state === "trapped") {
+            const fl = Math.sin(G.time * 5) * 3;
+            drawCharacter(p, p.x, p.y - 8 + fl, 0.75);
+            const R = T * 0.56 * (1 + Math.sin(G.time * 9) * 0.04);
+            const g = ctx.createRadialGradient(
+              p.x - 8,
+              p.y - 18 + fl,
+              4,
+              p.x,
+              p.y - 8 + fl,
+              R,
+            );
+            g.addColorStop(0, "rgba(255,255,255,.55)");
+            g.addColorStop(0.7, "rgba(150,215,255,.35)");
+            g.addColorStop(1, "rgba(90,180,255,.6)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 8 + fl, R, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,.8)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.strokeStyle = "rgba(255,255,255,.9)";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 8 + fl, R - 6, Math.PI * 1.1, Math.PI * 1.4);
+            ctx.stroke();
+            // 남은 시간
+            ctx.strokeStyle = "#ff4d5e";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(
+              p.x,
+              p.y - 8 + fl,
+              R + 4,
+              -Math.PI / 2,
+              -Math.PI / 2 + Math.PI * 2 * (p.trapT / p.trapMax),
+            );
+            ctx.stroke();
+          } else {
+            drawCharacter(p, p.x, p.y, 1);
+          }
+          if (G.mode === "duo") {
+            ctx.font = "800 12px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            const ty = p.y - (p.state === "trapped" ? 46 : 34);
+            ctx.fillStyle = p.cfg.dark;
+            rr(p.x - 13, ty - 8, 26, 16, 8);
+            ctx.fill();
+            ctx.fillStyle = "#fff";
+            ctx.fillText(p.cfg.name, p.x, ty + 1);
+          }
+        }
+
+        // ===== HUD =====
+        let lastHud = "";
+        function updateHud() {
+          let L = "",
+            C = "",
+            R = "";
+          if (state === "menu" || !G || G.mode === "demo") {
+            C = "💦 물풍선 배틀";
+          } else if (G.mode === "solo") {
+            L = `<span class="tag"><span class="dot" style="background:var(--solo)"></span>1인 · 물풍선 피하기</span>`;
+            C = `⏱ ${G.survive.toFixed(1)}초`;
+            R = `<span class="tag">🏆 최고 ${best.toFixed(1)}초</span>`;
+          } else {
+            const st = (p) =>
+              `<div class="stats">🎈 ${p.maxB} · 💧 ${p.range} · 👟 ${Math.round((p.speed - 150) / 22) + 1}</div>`;
+            const [a, b] = G.players;
+            L = `<span class="tag"><span class="dot" style="background:var(--p1)"></span>P1 (WASD · 좌Shift)</span>${st(a)}`;
+            C = `${wins.P1} : ${wins.P2}`;
+            R = `<span class="tag">P2 (방향키 · 우Shift)<span class="dot" style="background:var(--p2)"></span></span>${st(b)}`;
+          }
+          const s = L + "|" + C + "|" + R;
+          if (s !== lastHud) {
+            lastHud = s;
+            hudL.innerHTML = L;
+            hudC.innerHTML = C;
+            hudR.innerHTML = R;
+          }
+        }
+
+        // ===== 화면 전환 =====
+        const $ = (id) => document.getElementById(id);
+        const hudL = $("hudL"),
+          hudC = $("hudC"),
+          hudR = $("hudR");
+        const menuEl = $("menu"),
+          overEl = $("over");
+
+        function start(mode) {
+          if (mode === "duo" && (!G || G.mode !== "duo"))
+            wins = { P1: 0, P2: 0 };
+          G = newGame(mode);
+          state = "play";
+          paused = false;
+          menuEl.classList.add("hidden");
+          overEl.classList.add("hidden");
+        }
+
+        function toMenu() {
+          state = "menu";
+          paused = false;
+          G = newGame("demo");
+          overEl.classList.add("hidden");
+          menuEl.classList.remove("hidden");
+        }
+
+        function showOver() {
+          state = "over";
+          if (G.mode === "solo") {
+            const t = G.result.time,
+              isBest = t > best;
+            if (isBest) {
+              best = t;
+              try {
+                localStorage.setItem("wb_best", String(best));
+              } catch (e) {}
+            }
+            $("overTitle").textContent = "물방울에 갇혔어요!";
+            $("overSub").innerHTML =
+              `생존 시간 <b>${t.toFixed(1)}초</b>` +
+              (isBest
+                ? " · 🏆 최고 기록!"
+                : ` · 최고 기록 ${best.toFixed(1)}초`);
+          } else {
+            const w = G.result.winner;
+            $("overTitle").innerHTML = w
+              ? `<span style="color:${w.cfg.color}">${w.cfg.name}</span> 승리!`
+              : "무승부!";
+            $("overSub").textContent = `P1 ${wins.P1} : ${wins.P2} P2`;
+          }
+          overEl.classList.remove("hidden");
+        }
+
+        document.querySelectorAll("[data-mode]").forEach((b) =>
+          b.addEventListener("click", (e) => {
+            e.currentTarget.blur();
+            start(b.dataset.mode);
+          }),
+        );
+        $("againBtn").addEventListener("click", (e) => {
+          e.currentTarget.blur();
+          start(G.mode);
+        });
+        $("menuBtn").addEventListener("click", (e) => {
+          e.currentTarget.blur();
+          toMenu();
+        });
+
+        // ===== 입력 =====
+        const BLOCK = new Set([
+          "ArrowUp",
+          "ArrowDown",
+          "ArrowLeft",
+          "ArrowRight",
+          "Space",
+          "ShiftLeft",
+          "ShiftRight",
+          "Enter",
+        ]);
+        addEventListener("keydown", (e) => {
+          if (BLOCK.has(e.code)) e.preventDefault();
+          if (!held.includes(e.code)) held.push(e.code);
+          if (e.repeat) return;
+          if (state === "menu") {
+            if (e.code === "Digit1" || e.code === "Numpad1") start("solo");
+            if (e.code === "Digit2" || e.code === "Numpad2") start("duo");
+          } else if (state === "play") {
+            if (e.code === "Escape") return toMenu();
+            if (e.code === "KeyP") {
+              paused = !paused;
+              return;
+            }
+            if (paused) return;
+            for (const p of G.players)
+              if (p.cfg.bomb === e.code) placeBalloon(p);
+          } else if (state === "over") {
+            if (e.code === "Enter" || e.code === "Space") start(G.mode);
+            if (e.code === "Escape") toMenu();
+          }
+        });
+        addEventListener("keyup", (e) => {
+          const i = held.indexOf(e.code);
+          if (i >= 0) held.splice(i, 1);
+        });
+        addEventListener("blur", () => {
+          held.length = 0;
+        });
+
+        // ===== 루프 =====
+        let last = performance.now();
+        function frame(now) {
+          const dt = Math.min(0.033, (now - last) / 1000);
+          last = now;
+          if (!paused) update(dt);
+          render();
+          updateHud();
+          requestAnimationFrame(frame);
+        }
+
+        toMenu();
+        requestAnimationFrame(frame);
+      })();
+    </script>
+  </body>
+</html>

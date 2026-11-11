@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memory Match · 트럼프 카드 기억력 게임</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>Memory <span>Match</span></h1>
+      <p class="rule">같은 <b>숫자</b> + 같은 <b>색</b> 카드를 짝지어 보세요 &nbsp;(예: <span class="red">A♥</span> · <span class="red">A♦</span>)</p>
+    </header>
+
+    <section class="controls">
+      <div class="levels" role="radiogroup" aria-label="난이도">
+        <button class="level" data-pairs="6" role="radio">쉬움</button>
+        <button class="level" data-pairs="10" role="radio">보통</button>
+        <button class="level" data-pairs="15" role="radio">어려움</button>
+      </div>
+      <button id="restart" class="restart">↻ 새 게임</button>
+    </section>
+
+    <section class="stats">
+      <div><span class="label">시간</span><span id="time" class="value">0:00</span></div>
+      <div><span class="label">시도</span><span id="moves" class="value">0</span></div>
+      <div><span class="label">짝</span><span id="pairs" class="value">0/0</span></div>
+      <div><span class="label">최고 기록</span><span id="best" class="value">—</span></div>
+    </section>
+
+    <section id="board" class="board" aria-label="카드 보드"></section>
+  </main>
+
+  <div id="win" class="overlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="win-title">
+      <div class="trophy">🃏</div>
+      <h2 id="win-title">클리어!</h2>
+      <p id="win-text"></p>
+      <p id="win-best" class="new-best" hidden>🏆 새 최고 기록!</p>
+      <button id="again" class="restart">다시 하기</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

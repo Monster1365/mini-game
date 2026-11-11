@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>끝말잇기</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e5e1d8;
+    --accent: #2f6fed;
+    --accent-ink: #ffffff;
+    --good: #1f9d55;
+    --bad: #d93a3a;
+    --warn: #e08a00;
+    --chip: #f1eee6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --card: #20232a;
+      --ink: #eceef2;
+      --muted: #9aa1ad;
+      --line: #333843;
+      --accent: #5b8cff;
+      --accent-ink: #0d1117;
+      --good: #3ecf7c;
+      --bad: #ff6b6b;
+      --warn: #ffb547;
+      --chip: #2a2e37;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    line-height: 1.5;
+  }
+  #app { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  h1 { font-size: 40px; margin: 8px 0 20px; text-align: center; letter-spacing: -1px; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 14px;
+  }
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); padding: 8px 14px;
+  }
+  button:hover { filter: brightness(0.97); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+  button.danger { color: var(--bad); }
+  button.big { width: 100%; padding: 16px; font-size: 20px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input[type=text], select, textarea {
+    font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { width: 100%; min-height: 70px; resize: vertical; }
+
+  /* menu */
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .mode { display: flex; gap: 10px; align-items: flex-start; border: 2px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; }
+  .mode:has(input:checked) { border-color: var(--accent); }
+  .mode b { display: block; font-size: 17px; }
+  .mode span { color: var(--muted); font-size: 14px; }
+  .mode input { margin-top: 5px; }
+  #challengeOpts { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  #challengeOpts.hidden { display: none; }
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .rules label, #challengeOpts label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+  .rules label input { margin-top: 5px; }
+  .rules small { display: block; color: var(--muted); font-size: 13px; }
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input { flex: 1; min-width: 0; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+
+  /* game */
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+  .badge { background: var(--chip); border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 600; }
+  .players { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .pchip { background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 6px 12px; font-size: 15px; }
+  .pchip.current { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .pchip.out { opacity: .4; text-decoration: line-through; }
+  .pchip .lives { color: var(--bad); margin-left: 6px; letter-spacing: 1px; }
+  .stage { text-align: center; padding: 26px 20px; }
+  .turn { font-size: 22px; font-weight: 700; }
+  .turn em { font-style: normal; color: var(--accent); }
+  .lastword { font-size: 56px; font-weight: 800; letter-spacing: 2px; margin: 10px 0 4px; min-height: 84px; word-break: break-all; }
+  .lastword .tail { color: var(--accent); }
+  .lastword.empty { font-size: 22px; color: var(--muted); font-weight: 500; display: flex; align-items: center; justify-content: center; }
+  .hint { color: var(--muted); font-size: 16px; min-height: 24px; }
+  .hint b { color: var(--ink); font-size: 20px; }
+  .timer { height: 12px; background: var(--chip); border-radius: 999px; overflow: hidden; margin: 16px 0 4px; }
+  .timer > div { height: 100%; width: 100%; background: var(--good); transition: background .2s; }
+  .timer.hidden, .timetext.hidden { display: none; }
+  .timetext { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .inputrow { display: flex; gap: 8px; margin-top: 16px; }
+  .inputrow input { flex: 1; min-width: 0; font-size: 26px; padding: 12px 16px; text-align: center; }
+  .inputrow button { font-size: 20px; padding: 0 22px; }
+  .msg { min-height: 26px; margin-top: 10px; font-weight: 600; }
+  .msg.bad { color: var(--bad); }
+  .msg.good { color: var(--good); }
+  .msg.warn { color: var(--warn); }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+  .actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  .history { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+  .history li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  .history li:last-child { border-bottom: 0; }
+  .history .w { font-weight: 700; font-size: 18px; }
+  .history .who { color: var(--muted); font-size: 14px; }
+  .history li.sys { color: var(--muted); font-size: 14px; justify-content: center; }
+  .history li.sys.bad { color: var(--bad); }
+
+  /* result */
+  .winner { text-align: center; padding: 30px 10px; }
+  .winner .crown { font-size: 60px; }
+  .winner h2 { font-size: 32px; margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .modes, .rules { grid-template-columns: 1fr; }
+    .lastword { font-size: 40px; min-height: 60px; }
+    h1 { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== 메뉴 ===== -->
+  <section id="menu" class="screen active">
+    <h1>끝말잇기</h1>
+
+    <div class="card">
+      <h2>게임 모드</h2>
+      <div class="modes">
+        <label class="mode">
+          <input type="radio" name="mode" value="infinite" checked>
+          <div><b>무한모드</b><span>시간제한 없이 천천히 생각하며 진행</span></div>
+        </label>
+        <label class="mode">
+          <input type="radio" name="mode" value="challenge">
+          <div><b>도전모드</b><span>제한시간 안에 못 내면 목숨 하나 잃음</span></div>
+        </label>
+      </div>
+      <div id="challengeOpts" class="hidden">
+        <span class="row">제한시간
+          <select id="timeLimit">
+            <option value="5">5초</option>
+            <option value="10" selected>10초</option>
+            <option value="15">15초</option>
+            <option value="20">20초</option>
+            <option value="30">30초</option>
+            <option value="60">60초</option>
+          </select>
+        </span>
+        <label><input type="checkbox" id="rule-speedup"> 단어가 쌓일수록 시간 줄어들기 (최소 5초)</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>플레이어</h2>
+      <div id="playerList"></div>
+      <div class="row" style="justify-content: space-between; margin-top: 4px;">
+        <button id="addPlayer">+ 플레이어 추가</button>
+        <span class="row">목숨
+          <select id="lives">
+            <option value="1">1개</option>
+            <option value="2">2개</option>
+            <option value="3" selected>3개</option>
+            <option value="5">5개</option>
+          </select>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>게임 규칙</h2>
+      <div class="rules">
+        <label><input type="checkbox" id="rule-hanbang" checked>
+          <span>한방단어 사용 가능<small>끝 글자로 이을 단어가 없는 단어 (예: 리튬, 그릇)</small></span></label>
+        <label><input type="checkbox" id="rule-firstHanbang" checked>
+          <span>라운드 첫 턴 한방단어 금지<small>시작하자마자 끝내는 것 방지</small></span></label>
+        <label><input type="checkbox" id="rule-dueum" checked>
+          <span>두음법칙 허용<small>력 → 역, 래 → 내 처럼 이어도 인정</small></span></label>
+        <label><input type="checkbox" id="rule-oneChar">
+          <span>한 글자 단어 허용<small>끄면 두 글자 이상만 인정</small></span></label>
+        <label><input type="checkbox" id="rule-randomStart" checked>
+          <span>라운드 시작 시 제시어 주기<small>끄면 첫 사람이 자유롭게 시작</small></span></label>
+        <label><input type="checkbox" id="rule-shuffle">
+          <span>플레이어 순서 섞기<small>게임 시작 시 무작위 순서</small></span></label>
+        <label><input type="checkbox" id="rule-challengePenalty">
+          <span>무효 처리 시 목숨 차감<small>이의 제기로 무효된 사람이 목숨을 잃음</small></span></label>
+        <label><input type="checkbox" id="rule-sound" checked>
+          <span>효과음<small>정답·오답·시간 경고 소리</small></span></label>
+      </div>
+      <details>
+        <summary>한방 글자 목록 편집</summary>
+        <p style="font-size:14px;color:var(--muted);margin:8px 0;">이 글자로 끝나는 단어를 한방단어로 봅니다. 띄어쓰기나 쉼표로 구분하세요.</p>
+        <textarea id="hanbangList"></textarea>
+        <button id="resetHanbang" style="margin-top:6px;">기본값으로</button>
+      </details>
+    </div>
+
+    <button id="startBtn" class="primary big">게임 시작</button>
+  </section>
+
+  <!-- ===== 게임 ===== -->
+  <section id="game" class="screen">
+    <div class="topbar">
+      <div class="row"><span class="badge" id="modeBadge"></span><span class="badge" id="roundBadge"></span></div>
+      <button id="toMenu">메뉴로</button>
+    </div>
+    <div class="players" id="playersBar"></div>
+
+    <div class="card stage">
+      <div class="turn" id="turnLabel"></div>
+      <div class="lastword" id="lastWord"></div>
+      <div class="hint" id="hint"></div>
+      <div class="timer" id="timer"><div id="timerFill"></div></div>
+      <div class="timetext" id="timeText"></div>
+      <div class="inputrow">
+        <input type="text" id="wordInput" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="단어 입력 후 Enter">
+        <button class="primary" id="submitBtn">입력</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div class="actions">
+        <button id="challengeBtn" title="직전 단어가 없는 말이면 무효 처리">이의 제기 (직전 단어 무효)</button>
+        <button id="giveUpBtn" class="danger">포기 (목숨 -1)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>사용한 단어 <span id="usedCount" style="color:var(--muted);font-weight:500;"></span></h2>
+      <ul class="history" id="history"></ul>
+    </div>
+  </section>
+
+  <!-- ===== 결과 ===== -->
+  <section id="result" class="screen">
+    <div class="card winner">
+      <div class="crown">🏆</div>
+      <h2 id="winnerName"></h2>
+      <div style="color:var(--muted)" id="winnerSub"></div>
+    </div>
+    <div class="card">
+      <h2>기록</h2>
+      <table>
+        <thead><tr><th>플레이어</th><th>낸 단어 수</th><th>가장 긴 단어</th><th>결과</th></tr></thead>
+        <tbody id="statsBody"></tbody>
+      </table>
+    </div>
+    <div class="row" style="gap:10px;">
+      <button id="againBtn" class="primary big" style="flex:1">같은 설정으로 다시</button>
+      <button id="resultMenuBtn" class="big" style="flex:1">메뉴로</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- 상수 ----------
+  const DEFAULT_HANBANG = '늄 듐 륨 윰 튬 슘 뮴 릇 녘 옄 슭 즘 쁨 픔 엌 듭 랖';
+  const START_WORDS = [
+    '사과','바다','하늘','기차','나무','학교','컴퓨터','고양이','강아지','연필','우산','친구','시계',
+    '자동차','가방','노래','모자','비행기','토끼','거울','구름','의자','책상','수박','도서관','운동장',
+    '신발','피아노','사진','바람','호랑이','지구','달걀','소나무','편지','기타','라면','김밥','축구',
+    '여름','겨울','가을','봄비','시장','병원','우체국','공원','다리','고래','문어','오리','포도','딸기',
+    '감자','고구마','당근','두부','미소','보물','상자','수건','안경','열쇠','장갑','종이','창문','풍선'
+  ];
+  const STORAGE_KEY = 'wordchain-settings-v1';
+
+  // ---------- 한글 유틸 ----------
+  const isHangulWord = s => /^[가-힣]+$/.test(s);
+  const decompose = ch => {
+    const c = ch.charCodeAt(0) - 0xAC00;
+    return { cho: Math.floor(c / 588), jung: Math.floor((c % 588) / 28), jong: c % 28 };
+  };
+  const compose = (cho, jung, jong) => String.fromCharCode(0xAC00 + cho * 588 + jung * 28 + jong);
+  // 초성: ㄴ=2, ㄹ=5, ㅇ=11
+  // 중성: ㅏ0 ㅐ1 ㅑ2 ㅒ3 ㅓ4 ㅔ5 ㅕ6 ㅖ7 ㅗ8 ㅘ9 ㅙ10 ㅚ11 ㅛ12 ㅜ13 ㅝ14 ㅞ15 ㅟ16 ㅠ17 ㅡ18 ㅢ19 ㅣ20
+  const IOTIZED = new Set([2, 6, 7, 12, 17, 20]); // ㅑ ㅕ ㅖ ㅛ ㅠ ㅣ
+  function dueum(ch) {
+    if (!/[가-힣]/.test(ch)) return ch;
+    const { cho, jung, jong } = decompose(ch);
+    if (cho === 5) { // ㄹ
+      return compose(IOTIZED.has(jung) ? 11 : 2, jung, jong);
+    }
+    if (cho === 2 && [6, 12, 17, 20].includes(jung)) { // ㄴ + ㅕㅛㅠㅣ
+      return compose(11, jung, jong);
+    }
+    return ch;
+  }
+  const josaRo = ch => { // (으)로
+    const { jong } = decompose(ch);
+    return (jong === 0 || jong === 8) ? '로' : '으로';
+  };
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const screens = { menu: $('menu'), game: $('game'), result: $('result') };
+  const showScreen = name => {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- 설정 ----------
+  const RULE_IDS = ['hanbang', 'firstHanbang', 'dueum', 'oneChar', 'randomStart', 'shuffle', 'challengePenalty', 'sound', 'speedup'];
+  let playerNames = ['플레이어 1', '플레이어 2'];
+
+  function loadSettings() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (e) {}
+    $('hanbangList').value = DEFAULT_HANBANG;
+    if (!saved) return;
+    if (saved.mode) document.querySelector(`input[name=mode][value=${saved.mode}]`).checked = true;
+    if (saved.timeLimit) $('timeLimit').value = saved.timeLimit;
+    if (saved.lives) $('lives').value = saved.lives;
+    if (Array.isArray(saved.players) && saved.players.length >= 2) playerNames = saved.players;
+    if (saved.rules) RULE_IDS.forEach(id => { if (id in saved.rules) $('rule-' + id).checked = !!saved.rules[id]; });
+    if (typeof saved.hanbang === 'string') $('hanbangList').value = saved.hanbang;
+  }
+  function readSettings() {
+    const rules = {};
+    RULE_IDS.forEach(id => rules[id] = $('rule-' + id).checked);
+    return {
+      mode: document.querySelector('input[name=mode]:checked').value,
+      timeLimit: Number($('timeLimit').value),
+      lives: Number($('lives').value),
+      players: playerNames.slice(),
+      rules,
+      hanbang: $('hanbangList').value,
+    };
+  }
+  function saveSettings() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(readSettings())); } catch (e) {}
+  }
+
+  function renderPlayerInputs() {
+    const box = $('playerList');
+    box.innerHTML = '';
+    playerNames.forEach((name, i) => {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+      row.innerHTML = `<span style="width:22px;color:var(--muted)">${i + 1}</span>
+        <input type="text" maxlength="12" value="${esc(name)}">
+        <button ${playerNames.length <= 2 ? 'disabled' : ''} aria-label="삭제">✕</button>`;
+      row.querySelector('input').addEventListener('input', e => { playerNames[i] = e.target.value; saveSettings(); });
+      row.querySelector('button').addEventListener('click', () => {
+        playerNames.splice(i, 1); renderPlayerInputs(); saveSettings();
+      });
+      box.appendChild(row);
+    });
+    $('addPlayer').disabled = playerNames.length >= 8;
+  }
+  function syncModeUI() {
+    $('challengeOpts').classList.toggle('hidden', document.querySelector('input[name=mode]:checked').value !== 'challenge');
+  }
+
+  // ---------- 효과음 ----------
+  let audioCtx = null;
+  function beep(freq, dur = 0.12, type = 'sine', vol = 0.15) {
+    if (!S || !S.rules.sound) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch (e) {}
+  }
+  const sfx = {
+    ok: () => { beep(660, .08); setTimeout(() => beep(880, .1), 70); },
+    bad: () => beep(180, .2, 'square', .08),
+    tick: () => beep(1000, .05, 'sine', .08),
+    lose: () => { beep(400, .15, 'sawtooth', .08); setTimeout(() => beep(260, .3, 'sawtooth', .08), 150); },
+  };
+
+  // ---------- 게임 상태 ----------
+  let S = null; // settings snapshot
+  let G = null; // game state
+  let timerId = null;
+
+  function startGame() {
+    S = readSettings();
+    saveSettings();
+    const names = S.players.map((n, i) => n.trim() || `플레이어 ${i + 1}`);
+    if (S.rules.shuffle) {
+      for (let i = names.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [names[i], names[j]] = [names[j], names[i]];
+      }
+    }
+    G = {
+      players: names.map(name => ({ name, lives: S.lives, words: 0, longest: '', out: false })),
+      hanbang: new Set(S.hanbang.split(/[\s,]+/).filter(Boolean)),
+      used: new Set(),
+      history: [],   // {type:'word'|'sys', text, p?, bad?}
+      chain: [],     // 이번 라운드 플레이어가 낸 단어 {word, p}
+      roundStartWord: null,
+      lastWord: null,
+      current: 0,
+      round: 0,
+      totalWords: 0,
+      over: false,
+    };
+    $('modeBadge').textContent = S.mode === 'challenge' ? `도전모드 · ${S.timeLimit}초` : '무한모드';
+    $('timer').classList.toggle('hidden', S.mode !== 'challenge');
+    $('timeText').classList.toggle('hidden', S.mode !== 'challenge');
+    $('history').innerHTML = '';
+    showScreen('game');
+    startRound(0);
+  }
+
+  function startRound(starter) {
+    G.round++;
+    G.chain = [];
+    G.lastWord = null;
+    G.roundStartWord = null;
+    if (S.rules.randomStart) {
+      const pool = START_WORDS.filter(w => !G.used.has(w) && !isHanbang(w));
+      if (pool.length) {
+        const w = pool[Math.floor(Math.random() * pool.length)];
+        G.used.add(w);
+        G.roundStartWord = w;
+        G.lastWord = w;
+        addHistory({ type: 'sys', text: `${G.round}라운드 제시어: ${w}` });
+      } else {
+        addHistory({ type: 'sys', text: `${G.round}라운드 시작 (자유 시작)` });
+      }
+    } else {
+      addHistory({ type: 'sys', text: `${G.round}라운드 시작 (자유 시작)` });
+    }
+    setTurn(starter);
+  }
+
+  const alivePlayers = () => G.players.filter(p => !p.out);
+  function nextAlive(from) {
+    const n = G.players.length;
+    for (let k = 1; k <= n; k++) {
+      const i = (from + k) % n;
+      if (!G.players[i].out) return i;
+    }
+    return from;
+  }
+
+  function allowedStarts() {
+    if (!G.lastWord) return null;
+    const last = G.lastWord.at(-1);
+    const set = [last];
+    if (S.rules.dueum) {
+      const alt = dueum(last);
+      if (alt !== last) set.push(alt);
+    }
+    return set;
+  }
+
+  function isHanbang(word) {
+    const last = word.at(-1);
+    if (!G.hanbang.has(last)) return false;
+    if (S.rules.dueum) {
+      const alt = dueum(last);
+      if (alt !== last && !G.hanbang.has(alt)) return false;
+    }
+    return true;
+  }
+
+  function turnSeconds() {
+    if (S.mode !== 'challenge') return Infinity;
+    if (!S.rules.speedup) return S.timeLimit;
+    return Math.max(5, S.timeLimit - G.totalWords * 0.5);
+  }
+
+  function setTurn(idx, msg) {
+    G.current = idx;
+    render();
+    setMsg(msg || '', msg ? 'warn' : '');
+    const input = $('wordInput');
+    input.value = '';
+    input.focus();
+    startTimer();
+  }
+
+  // ---------- 타이머 ----------
+  function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+  function startTimer() {
+    stopTimer();
+    if (S.mode !== 'challenge') return;
+    const total = turnSeconds() * 1000;
+    const deadline = performance.now() + total;
+    let lastSec = null;
+    const fill = $('timerFill');
+    const tick = () => {
+      const left = Math.max(0, deadline - performance.now());
+      const ratio = left / total;
+      fill.style.width = (ratio * 100) + '%';
+      fill.style.background = ratio > .5 ? 'var(--good)' : ratio > .25 ? 'var(--warn)' : 'var(--bad)';
+      const sec = Math.ceil(left / 1000);
+      $('timeText').textContent = `${(left / 1000).toFixed(1)}초 남음`;
+      if (sec <= 3 && sec > 0 && sec !== lastSec) sfx.tick();
+      lastSec = sec;
+      if (left <= 0) {
+        stopTimer();
+        loseLife(G.current, '시간 초과');
+      }
+    };
+    tick();
+    timerId = setInterval(tick, 50);
+  }
+
+  // ---------- 행동 ----------
+  function submitWord() {
+    if (!G || G.over) return;
+    const input = $('wordInput');
+    const word = input.value.replace(/\s+/g, '');
+    if (!word) return;
+    const err = validate(word);
+    if (err) {
+      setMsg(err, 'bad');
+      sfx.bad();
+      input.classList.remove('shake'); void input.offsetWidth; input.classList.add('shake');
+      input.select();
+      return;
+    }
+    const p = G.players[G.current];
+    G.used.add(word);
+    G.chain.push({ word, p: G.current });
+    G.lastWord = word;
+    G.totalWords++;
+    p.words++;
+    if (word.length > p.longest.length) p.longest = word;
+    addHistory({ type: 'word', text: word, p: G.current });
+    sfx.ok();
+    const hb = isHanbang(word);
+    setTurn(nextAlive(G.current), hb ? `한방단어! 이을 수 없으면 포기하세요.` : '');
+  }
+
+  function validate(word) {
+    if (!isHangulWord(word)) return '완성된 한글 단어만 입력할 수 있어요.';
+    if (word.length < 2 && !S.rules.oneChar) return '두 글자 이상 입력하세요.';
+    const starts = allowedStarts();
+    if (starts && !starts.includes(word[0])) {
+      return `'${starts.join("' 또는 '")}'(으)로 시작해야 해요.`;
+    }
+    if (G.used.has(word)) return `'${word}'은(는) 이미 사용한 단어예요.`;
+    if (isHanbang(word)) {
+      if (!S.rules.hanbang) return '한방단어는 사용할 수 없어요.';
+      if (S.rules.firstHanbang && G.chain.length === 0) return '라운드 첫 턴에는 한방단어를 쓸 수 없어요.';
+    }
+    return null;
+  }
+
+  function challenge() {
+    if (!G || G.over) return;
+    const entry = G.chain.at(-1);
+    if (!entry) { setMsg('무효 처리할 단어가 없어요.', 'bad'); return; }
+    const target = G.players[entry.p];
+    if (!confirm(`'${entry.word}' (${target.name})을(를) 없는 단어로 무효 처리할까요?`)) { $('wordInput').focus(); return; }
+    G.chain.pop();
+    G.used.delete(entry.word);
+    G.totalWords--;
+    target.words--;
+    if (target.longest === entry.word) {
+      target.longest = G.history
+        .filter(h => h.type === 'word' && h.p === entry.p && h.text !== entry.word)
+        .reduce((a, h) => h.text.length > a.length ? h.text : a, '');
+    }
+    // 히스토리에서 해당 단어 제거
+    for (let i = G.history.length - 1; i >= 0; i--) {
+      if (G.history[i].type === 'word' && G.history[i].text === entry.word) { G.history.splice(i, 1); break; }
+    }
+    G.lastWord = G.chain.length ? G.chain.at(-1).word : G.roundStartWord;
+    addHistory({ type: 'sys', text: `'${entry.word}' 무효 처리 (${target.name})`, bad: true });
+    sfx.bad();
+    if (S.rules.challengePenalty) {
+      loseLife(entry.p, '무효 단어');
+    } else {
+      setTurn(entry.p, `${target.name}님, '${entry.word}'은(는) 무효예요. 다시 입력하세요.`);
+    }
+  }
+
+  function loseLife(idx, reason) {
+    stopTimer();
+    const p = G.players[idx];
+    p.lives--;
+    sfx.lose();
+    if (p.lives <= 0) {
+      p.out = true;
+      addHistory({ type: 'sys', text: `${p.name} 탈락! (${reason})`, bad: true });
+    } else {
+      addHistory({ type: 'sys', text: `${p.name} 목숨 -1 (${reason}) · 남은 목숨 ${p.lives}`, bad: true });
+    }
+    const alive = alivePlayers();
+    if (alive.length <= 1) { endGame(alive[0] || null); return; }
+    startRound(p.out ? nextAlive(idx) : idx);
+    setMsg(`${p.name}: ${reason}${p.out ? ' → 탈락' : ' → 목숨 -1'}. 새 라운드!`, 'bad');
+  }
+
+  function endGame(winner) {
+    G.over = true;
+    stopTimer();
+    $('winnerName').textContent = winner ? `${winner.name} 승리!` : '무승부';
+    $('winnerSub').textContent = `총 ${G.totalWords}개 단어 · ${G.round}라운드`;
+    const order = G.players.slice().sort((a, b) => (b.out === a.out ? b.words - a.words : a.out ? 1 : -1));
+    $('statsBody').innerHTML = order.map(p => `
+      <tr><td>${esc(p.name)}</td><td>${p.words}</td><td>${esc(p.longest || '-')}</td>
+      <td>${p === winner ? '🏆 우승' : p.out ? '탈락' : '-'}</td></tr>`).join('');
+    showScreen('result');
+  }
+
+  // ---------- 렌더 ----------
+  function addHistory(item) {
+    G.history.push(item);
+    renderHistory();
+  }
+  function renderHistory() {
+    const list = $('history');
+    list.innerHTML = G.history.slice().reverse().map(h => h.type === 'word'
+      ? `<li><span class="w">${esc(h.text)}</span><span class="who">${esc(G.players[h.p].name)}</span></li>`
+      : `<li class="sys ${h.bad ? 'bad' : ''}">${esc(h.text)}</li>`).join('');
+    $('usedCount').textContent = `(${G.used.size}개)`;
+  }
+
+  function render() {
+    $('roundBadge').textContent = `${G.round}라운드`;
+    $('playersBar').innerHTML = G.players.map((p, i) => `
+      <div class="pchip ${i === G.current ? 'current' : ''} ${p.out ? 'out' : ''}">
+        ${esc(p.name)}<span class="lives">${'♥'.repeat(Math.max(0, p.lives))}</span>
+      </div>`).join('');
+    $('turnLabel').innerHTML = `<em>${esc(G.players[G.current].name)}</em> 차례`;
+
+    const lw = $('lastWord');
+    if (G.lastWord) {
+      lw.classList.remove('empty');
+      lw.innerHTML = `${esc(G.lastWord.slice(0, -1))}<span class="tail">${esc(G.lastWord.at(-1))}</span>`;
+      const starts = allowedStarts();
+      const last = starts[0];
+      $('hint').innerHTML = starts.length > 1
+        ? `<b>${last}</b> 또는 <b>${starts[1]}</b>${josaRo(starts[1])} 시작하는 단어`
+        : `<b>${last}</b>${josaRo(last)} 시작하는 단어`;
+    } else {
+      lw.classList.add('empty');
+      lw.textContent = '아무 단어로나 시작하세요';
+      $('hint').textContent = '';
+    }
+    $('challengeBtn').disabled = G.chain.length === 0;
+  }
+
+  function setMsg(text, kind) {
+    const m = $('msg');
+    m.textContent = text;
+    m.className = 'msg ' + (kind || '');
+  }
+
+  // ---------- 이벤트 ----------
+  const input = $('wordInput');
+  input.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) {
+      // 한글 조합 중인 글자를 확정시킨 뒤 제출
+      input.blur();
+      setTimeout(() => { submitWord(); input.focus(); }, 0);
+    } else {
+      submitWord();
+    }
+  });
+  $('submitBtn').addEventListener('click', () => { submitWord(); input.focus(); });
+  $('challengeBtn').addEventListener('click', challenge);
+  $('giveUpBtn').addEventListener('click', () => {
+    if (!G || G.over) return;
+    if (confirm(`${G.players[G.current].name}님, 포기하고 목숨을 하나 잃을까요?`)) loseLife(G.current, '포기');
+    else input.focus();
+  });
+  $('toMenu').addEventListener('click', () => {
+    if (!confirm('게임을 그만두고 메뉴로 돌아갈까요?')) { input.focus(); return; }
+    stopTimer(); G.over = true; showScreen('menu');
+  });
+  $('againBtn').addEventListener('click', startGame);
+  $('resultMenuBtn').addEventListener('click', () => showScreen('menu'));
+  $('startBtn').addEventListener('click', startGame);
+  $('addPlayer').addEventListener('click', () => {
+    if (playerNames.length >= 8) return;
+    playerNames.push(`플레이어 ${playerNames.length + 1}`);
+    renderPlayerInputs(); saveSettings();
+  });
+  $('resetHanbang').addEventListener('click', () => { $('hanbangList').value = DEFAULT_HANBANG; saveSettings(); });
+  document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => { syncModeUI(); saveSettings(); }));
+  document.querySelectorAll('#menu select, #menu input[type=checkbox], #hanbangList')
+    .forEach(el => el.addEventListener('change', saveSettings));
+
+  loadSettings();
+  renderPlayerInputs();
+  syncModeUI();
+})();
+</script>
+</body>
+</html>
