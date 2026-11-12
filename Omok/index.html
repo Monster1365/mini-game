@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오목</title>
+<style>
+  :root {
+    --bg: #1b1a17;
+    --panel: #2a2722;
+    --line: #4a443a;
+    --text: #f3ede2;
+    --muted: #b3a994;
+    --accent: #e8b04a;
+    --win: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    gap: 12px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .top {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .players { display: flex; gap: 8px; }
+  .player {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel);
+    transition: border-color .15s, transform .15s;
+  }
+  .player.active { border-color: var(--accent); transform: scale(1.04); }
+  .player .dot { width: 18px; height: 18px; border-radius: 50%; }
+  .player.black .dot { background: radial-gradient(circle at 35% 35%, #666, #000 60%); }
+  .player.white .dot { background: radial-gradient(circle at 35% 35%, #fff, #cfcfcf 70%); }
+  .player .name { font-weight: 700; }
+  .player .score { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .actions { display: flex; gap: 8px; }
+  button {
+    font: inherit;
+    font-size: .9rem;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  #status { min-height: 1.5em; margin: 0; font-weight: 600; color: var(--muted); text-align: center; }
+  #status.win { color: var(--accent); font-size: 1.15rem; }
+  .board-wrap { flex: 1; min-height: 0; width: 100%; display: flex; align-items: flex-start; justify-content: center; }
+  canvas { display: block; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.45); cursor: pointer; touch-action: manipulation; }
+  canvas.over { cursor: default; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="players">
+      <div class="player black" id="pBlack"><span class="dot"></span><span class="name">흑</span><span class="score" id="sBlack">0승</span></div>
+      <div class="player white" id="pWhite"><span class="dot"></span><span class="name">백</span><span class="score" id="sWhite">0승</span></div>
+    </div>
+    <div class="actions">
+      <button id="undoBtn" type="button">↶ 무르기</button>
+      <button id="newBtn" type="button">↻ 새 게임</button>
+    </div>
+  </div>
+  <p id="status" aria-live="polite"></p>
+  <div class="board-wrap" id="wrap"><canvas id="board" aria-label="오목판"></canvas></div>
+
+<script>
+(() => {
+  const N = 15;                 // 15×15 판
+  const EMPTY = 0, BLACK = 1, WHITE = 2;
+  const NAME = { [BLACK]: '흑', [WHITE]: '백' };
+  const STARS = [3, 7, 11];
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('wrap');
+  const statusEl = document.getElementById('status');
+  const undoBtn = document.getElementById('undoBtn');
+
+  let board, turn, history, winLine, over, hover = null;
+  const score = { [BLACK]: 0, [WHITE]: 0 };
+  let size = 0, cell = 0;
+
+  function reset() {
+    board = Array.from({ length: N }, () => new Array(N).fill(EMPTY));
+    turn = BLACK;
+    history = [];
+    winLine = null;
+    over = false;
+    update();
+  }
+
+  // ---------- 승리 판정 ----------
+  function findWin(r, c) {
+    const color = board[r][c];
+    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+      const line = [[r, c]];
+      for (const s of [1, -1]) {
+        let rr = r + dr * s, cc = c + dc * s;
+        while (rr >= 0 && rr < N && cc >= 0 && cc < N && board[rr][cc] === color) {
+          line.push([rr, cc]);
+          rr += dr * s; cc += dc * s;
+        }
+      }
+      if (line.length >= 5) return line;
+    }
+    return null;
+  }
+
+  function place(r, c) {
+    if (over || board[r][c] !== EMPTY) return;
+    board[r][c] = turn;
+    history.push([r, c]);
+    const line = findWin(r, c);
+    if (line) {
+      winLine = line;
+      over = true;
+      score[turn]++;
+    } else if (history.length === N * N) {
+      over = true;
+    } else {
+      turn = turn === BLACK ? WHITE : BLACK;
+    }
+    update();
+  }
+
+  function undo() {
+    if (over || !history.length) return;
+    const [r, c] = history.pop();
+    board[r][c] = EMPTY;
+    turn = turn === BLACK ? WHITE : BLACK;
+    update();
+  }
+
+  // ---------- UI ----------
+  function update() {
+    document.getElementById('pBlack').classList.toggle('active', !over && turn === BLACK);
+    document.getElementById('pWhite').classList.toggle('active', !over && turn === WHITE);
+    document.getElementById('sBlack').textContent = score[BLACK] + '승';
+    document.getElementById('sWhite').textContent = score[WHITE] + '승';
+    statusEl.classList.toggle('win', over);
+    if (winLine) statusEl.textContent = `🎉 ${NAME[turn]} 승리! (${history.length}수)`;
+    else if (over) statusEl.textContent = '무승부! 판이 가득 찼어요.';
+    else statusEl.textContent = `${NAME[turn]} 차례입니다`;
+    undoBtn.disabled = over || history.length === 0;
+    canvas.classList.toggle('over', over);
+    draw();
+  }
+
+  function resize() {
+    const avail = Math.min(wrap.clientWidth, wrap.clientHeight || wrap.clientWidth, 720);
+    size = Math.max(240, Math.floor(avail));
+    cell = size / (N + 1);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = canvas.style.height = size + 'px';
+    canvas.width = canvas.height = Math.round(size * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  const pos = i => cell * (i + 1);
+
+  function drawStone(r, c, color, alpha = 1) {
+    const x = pos(c), y = pos(r), rad = cell * 0.44;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (alpha === 1) {
+      ctx.shadowColor = 'rgba(0,0,0,.35)';
+      ctx.shadowBlur = cell * 0.15;
+      ctx.shadowOffsetY = cell * 0.06;
+    }
+    const g = ctx.createRadialGradient(x - rad * .35, y - rad * .35, rad * .1, x, y, rad);
+    if (color === BLACK) { g.addColorStop(0, '#666'); g.addColorStop(1, '#0a0a0a'); }
+    else { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#cfcac0'); }
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    if (!size || !board) return;
+    // 판
+    ctx.fillStyle = '#dcb36a';
+    ctx.fillRect(0, 0, size, size);
+    ctx.strokeStyle = '#5b4220';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      ctx.moveTo(pos(0), pos(i)); ctx.lineTo(pos(N - 1), pos(i));
+      ctx.moveTo(pos(i), pos(0)); ctx.lineTo(pos(i), pos(N - 1));
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#5b4220';
+    for (const r of STARS) for (const c of STARS) {
+      ctx.beginPath(); ctx.arc(pos(c), pos(r), Math.max(2, cell * .1), 0, Math.PI * 2); ctx.fill();
+    }
+    // 돌
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (board[r][c]) drawStone(r, c, board[r][c]);
+    // 마우스 미리보기
+    if (hover && !over && board[hover[0]][hover[1]] === EMPTY) drawStone(hover[0], hover[1], turn, .45);
+    // 마지막 수 표시
+    if (history.length && !winLine) {
+      const [r, c] = history[history.length - 1];
+      ctx.fillStyle = '#e5484d';
+      ctx.beginPath(); ctx.arc(pos(c), pos(r), cell * .1, 0, Math.PI * 2); ctx.fill();
+    }
+    // 승리 줄
+    if (winLine) {
+      ctx.strokeStyle = '#e5484d';
+      ctx.lineWidth = Math.max(2, cell * .1);
+      for (const [r, c] of winLine) {
+        ctx.beginPath(); ctx.arc(pos(c), pos(r), cell * .44, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
+
+  function cellAt(e) {
+    const rect = canvas.getBoundingClientRect();
+    const c = Math.round((e.clientX - rect.left) / cell - 1);
+    const r = Math.round((e.clientY - rect.top) / cell - 1);
+    return r >= 0 && r < N && c >= 0 && c < N ? [r, c] : null;
+  }
+
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    const h = cellAt(e);
+    if (String(h) !== String(hover)) { hover = h; draw(); }
+  });
+  canvas.addEventListener('pointerleave', () => { hover = null; draw(); });
+  canvas.addEventListener('click', e => { const p = cellAt(e); if (p) place(p[0], p[1]); });
+  undoBtn.addEventListener('click', undo);
+  document.getElementById('newBtn').addEventListener('click', reset);
+  window.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+  });
+  new ResizeObserver(resize).observe(wrap);
+
+  reset();
+  resize();
+})();
+</script>
+</body>
+</html>
