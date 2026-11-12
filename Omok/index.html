@@ -72,6 +72,10 @@
   .board-wrap { flex: 1; min-height: 0; width: 100%; display: flex; align-items: flex-start; justify-content: center; }
   canvas { display: block; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.45); cursor: pointer; touch-action: manipulation; }
   canvas.over { cursor: default; }
+  canvas.blocked { cursor: not-allowed; }
+  #status.warn { color: var(--win); }
+  .rules { margin: 0; color: var(--muted); font-size: .8rem; text-align: center; }
+  .rules b { color: var(--text); }
 </style>
 </head>
 <body>
@@ -86,6 +90,7 @@
     </div>
   </div>
   <p id="status" aria-live="polite"></p>
+  <p class="rules"><b>렌주룰</b> · 흑은 3·3, 4·4, 6목 이상(장목) 금지 <span aria-hidden="true">(✕ 표시)</span> · 흑은 정확히 5목, 백은 5목 이상이면 승리</p>
   <div class="board-wrap" id="wrap"><canvas id="board" aria-label="오목판"></canvas></div>
 
 <script>
@@ -102,6 +107,8 @@
   const undoBtn = document.getElementById('undoBtn');
 
   let board, turn, history, winLine, over, hover = null;
+  let forbidden = new Map();   // 흑 차례의 금수 자리 "r,c" → 이유
+  let flash = null, flashTimer = 0;
   const score = { [BLACK]: 0, [WHITE]: 0 };
   let size = 0, cell = 0;
 
@@ -114,25 +121,110 @@
     update();
   }
 
-  // ---------- 승리 판정 ----------
+  const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  const inside = (r, c) => r >= 0 && r < N && c >= 0 && c < N;
+
+  // (r,c)를 지나는 한 방향의 연속된 같은 색 돌 좌표
+  function runThrough(r, c, dr, dc) {
+    const color = board[r][c];
+    const line = [[r, c]];
+    for (const s of [1, -1]) {
+      let rr = r + dr * s, cc = c + dc * s;
+      while (inside(rr, cc) && board[rr][cc] === color) {
+        line.push([rr, cc]);
+        rr += dr * s; cc += dc * s;
+      }
+    }
+    return line;
+  }
+
+  // ---------- 승리 판정 (흑: 정확히 5목, 백: 5목 이상) ----------
   function findWin(r, c) {
     const color = board[r][c];
-    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
-      const line = [[r, c]];
-      for (const s of [1, -1]) {
-        let rr = r + dr * s, cc = c + dc * s;
-        while (rr >= 0 && rr < N && cc >= 0 && cc < N && board[rr][cc] === color) {
-          line.push([rr, cc]);
-          rr += dr * s; cc += dc * s;
-        }
-      }
-      if (line.length >= 5) return line;
+    for (const [dr, dc] of DIRS) {
+      const line = runThrough(r, c, dr, dc);
+      if (color === BLACK ? line.length === 5 : line.length >= 5) return line;
     }
     return null;
   }
 
+  // ---------- 렌주룰 금수 판정 (흑만 해당) ----------
+  // 흑돌이 (r,c)에 놓여 있다고 가정하고, 한 방향에서 (r,c)를 포함하는 '4'들을 찾는다.
+  // 4 = 한 수만 더 두면 정확히 5목이 되는 돌 4개. 반환값: "돌 4개" 키 → 5목을 완성하는 빈 자리 수
+  // (열린 4는 같은 돌 4개를 양쪽 두 자리에서 완성할 수 있으므로 값이 2)
+  function fourGroups(r, c, dr, dc) {
+    const groups = new Map();
+    for (let k = -4; k <= 4; k++) {
+      const qr = r + dr * k, qc = c + dc * k;
+      if (k === 0 || !inside(qr, qc) || board[qr][qc] !== EMPTY) continue;
+      board[qr][qc] = BLACK;
+      const line = runThrough(qr, qc, dr, dc);
+      board[qr][qc] = EMPTY;
+      if (line.length !== 5 || !line.some(([a, b]) => a === r && b === c)) continue;
+      const key = line.filter(([a, b]) => a !== qr || b !== qc).map(p => p.join(',')).sort().join(';');
+      groups.set(key, (groups.get(key) || 0) + 1);
+    }
+    return groups;
+  }
+
+  // 열린 3 = 한 수 더 두어 열린 4를 만들 수 있고, 그 자리가 금수가 아닌 3
+  function isOpenThree(r, c, dr, dc, depth) {
+    for (let k = -4; k <= 4; k++) {
+      const qr = r + dr * k, qc = c + dc * k;
+      if (k === 0 || !inside(qr, qc) || board[qr][qc] !== EMPTY) continue;
+      board[qr][qc] = BLACK;
+      const straightFour = [...fourGroups(r, c, dr, dc).values()].some(n => n === 2);
+      board[qr][qc] = EMPTY;
+      if (straightFour && !forbiddenReason(qr, qc, depth + 1)) return true;
+    }
+    return false;
+  }
+
+  // 흑이 (r,c)에 두면 금수인지 판정. 금수면 이유 문자열, 아니면 null
+  function forbiddenReason(r, c, depth = 0) {
+    if (board[r][c] !== EMPTY) return null;
+    board[r][c] = BLACK;
+    let reason = null;
+    const runs = DIRS.map(([dr, dc]) => runThrough(r, c, dr, dc).length);
+    if (!runs.includes(5)) {                       // 5목이 되면 다른 조건과 상관없이 승리
+      if (runs.some(n => n > 5)) {
+        reason = '장목';
+      } else {
+        let fours = 0, threes = 0;
+        for (const [dr, dc] of DIRS) {
+          const groups = fourGroups(r, c, dr, dc);
+          if (groups.size) fours += groups.size;   // 한 줄에 4가 둘이면 그것도 4·4
+          else if (depth < 3 && isOpenThree(r, c, dr, dc, depth)) threes++;
+        }
+        if (fours >= 2) reason = '4·4';
+        else if (threes >= 2) reason = '3·3';
+      }
+    }
+    board[r][c] = EMPTY;
+    return reason;
+  }
+
+  function computeForbidden() {
+    forbidden = new Map();
+    if (over || turn !== BLACK) return;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const reason = forbiddenReason(r, c);
+      if (reason) forbidden.set(r + ',' + c, reason);
+    }
+  }
+
+  function showFlash(msg) {
+    flash = msg;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { flash = null; update(); }, 1600);
+    update();
+  }
+
   function place(r, c) {
     if (over || board[r][c] !== EMPTY) return;
+    const reason = turn === BLACK && forbidden.get(r + ',' + c);
+    if (reason) { showFlash(`✕ 금수 자리예요 (${reason})`); return; }
+    flash = null;
     board[r][c] = turn;
     history.push([r, c]);
     const line = findWin(r, c);
@@ -157,17 +249,23 @@
   }
 
   // ---------- UI ----------
+  let forbiddenKey = '';
   function update() {
+    const key = `${history.length}|${turn}|${over}`;
+    if (key !== forbiddenKey) { forbiddenKey = key; computeForbidden(); }
     document.getElementById('pBlack').classList.toggle('active', !over && turn === BLACK);
     document.getElementById('pWhite').classList.toggle('active', !over && turn === WHITE);
     document.getElementById('sBlack').textContent = score[BLACK] + '승';
     document.getElementById('sWhite').textContent = score[WHITE] + '승';
     statusEl.classList.toggle('win', over);
-    if (winLine) statusEl.textContent = `🎉 ${NAME[turn]} 승리! (${history.length}수)`;
+    statusEl.classList.toggle('warn', !!flash);
+    if (flash) statusEl.textContent = flash;
+    else if (winLine) statusEl.textContent = `🎉 ${NAME[turn]} 승리! (${history.length}수)`;
     else if (over) statusEl.textContent = '무승부! 판이 가득 찼어요.';
     else statusEl.textContent = `${NAME[turn]} 차례입니다`;
     undoBtn.disabled = over || history.length === 0;
     canvas.classList.toggle('over', over);
+    canvas.classList.toggle('blocked', !!(hover && forbidden.has(hover.join(','))));
     draw();
   }
 
@@ -222,8 +320,23 @@
     }
     // 돌
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (board[r][c]) drawStone(r, c, board[r][c]);
+    // 흑 금수 자리 ✕
+    ctx.strokeStyle = 'rgba(229,72,77,.85)';
+    ctx.lineWidth = Math.max(1.5, cell * .07);
+    ctx.lineCap = 'round';
+    const k = cell * .2;
+    for (const p of forbidden.keys()) {
+      const [r, c] = p.split(',').map(Number);
+      ctx.beginPath();
+      ctx.moveTo(pos(c) - k, pos(r) - k); ctx.lineTo(pos(c) + k, pos(r) + k);
+      ctx.moveTo(pos(c) + k, pos(r) - k); ctx.lineTo(pos(c) - k, pos(r) + k);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
     // 마우스 미리보기
-    if (hover && !over && board[hover[0]][hover[1]] === EMPTY) drawStone(hover[0], hover[1], turn, .45);
+    if (hover && !over && board[hover[0]][hover[1]] === EMPTY && !forbidden.has(hover.join(','))) {
+      drawStone(hover[0], hover[1], turn, .45);
+    }
     // 마지막 수 표시
     if (history.length && !winLine) {
       const [r, c] = history[history.length - 1];
@@ -250,7 +363,11 @@
   canvas.addEventListener('pointermove', e => {
     if (e.pointerType !== 'mouse') return;
     const h = cellAt(e);
-    if (String(h) !== String(hover)) { hover = h; draw(); }
+    if (String(h) !== String(hover)) {
+      hover = h;
+      canvas.classList.toggle('blocked', !!(hover && forbidden.has(hover.join(','))));
+      draw();
+    }
   });
   canvas.addEventListener('pointerleave', () => { hover = null; draw(); });
   canvas.addEventListener('click', e => { const p = cellAt(e); if (p) place(p[0], p[1]); });
