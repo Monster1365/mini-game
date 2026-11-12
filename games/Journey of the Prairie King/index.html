@@ -4,12 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>황야의 레인저</title>
+<script src="../_shared/theme.js"></script>
 <style>
-  html,body{margin:0;height:100%;background:#1a1410;color:#eee;font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+  :root{color-scheme:dark;--bg:#1a1410;--text:#eee;--help:#b9a48a;--frame:#4a3426;--frame-out:#2a1d14;--frame-shadow:#000a;--kbd-bg:#3a2a1e;--kbd-line:#5a4430;--kbd-text:#f5deb3}
+  :root[data-theme="light"]{color-scheme:light;--bg:#f4e9d6;--text:#3a2a1e;--help:#7a5b3c;--frame:#8a6040;--frame-out:#d9c09a;--frame-shadow:#5a3a1a40;--kbd-bg:#fff7e8;--kbd-line:#d6bc93;--kbd-text:#5a3d22}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
   body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 16px;box-sizing:border-box}
-  canvas{image-rendering:pixelated;width:min(100%,calc((100vh - 70px) * 256 / 280));height:auto;border:4px solid #4a3426;border-radius:4px;box-shadow:0 0 0 4px #2a1d14,0 10px 40px #000a;cursor:crosshair}
-  .help{font-size:13px;color:#b9a48a;text-align:center;line-height:1.6}
-  kbd{background:#3a2a1e;border:1px solid #5a4430;border-radius:3px;padding:0 5px;font-family:inherit;color:#f5deb3}
+  canvas{image-rendering:pixelated;width:min(100%,calc((100vh - 70px) * 256 / 280));height:auto;border:4px solid var(--frame);border-radius:4px;box-shadow:0 0 0 4px var(--frame-out),0 10px 40px var(--frame-shadow);cursor:crosshair}
+  .help{font-size:13px;color:var(--help);text-align:center;line-height:1.6}
+  kbd{background:var(--kbd-bg);border:1px solid var(--kbd-line);border-radius:3px;padding:0 5px;font-family:inherit;color:var(--kbd-text)}
 </style>
 </head>
 <body>

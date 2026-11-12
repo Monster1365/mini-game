@@ -1,11 +1,38 @@
+/* 다크 기본 · 라이트는 [data-theme="light"] (../_shared/theme.js가 지정) */
 :root {
+  color-scheme: dark;
   --felt: #0f5132;
   --felt-dark: #083b24;
+  --felt-glow: #17734a;
+  --felt-button: #0f5132;
   --gold: #f2c14e;
   --ink: #1d1d1f;
   --red: #c8102e;
+  --rule-red: #ff8a9a;
   --text: #f4f1e8;
   --muted: #b9d3c4;
+  --tint: rgba(0,0,0,.25);
+  --tint-soft: rgba(0,0,0,.22);
+  --restart-bg: #f4f1e8;
+  --restart-fg: #1d1d1f;
+  --card-shadow: 0 4px 10px rgba(0,0,0,.35);
+  --scrim: rgba(0,0,0,.55);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --felt: #cfe9da;
+  --felt-dark: #a8d4bb;
+  --felt-glow: #ecf7f0;
+  --gold: #d9a21b;
+  --rule-red: #c8102e;
+  --text: #11331f;
+  --muted: #3e6a51;
+  --tint: rgba(255,255,255,.55);
+  --tint-soft: rgba(255,255,255,.5);
+  --restart-bg: #11331f;
+  --restart-fg: #ffffff;
+  --card-shadow: 0 4px 10px rgba(20,60,40,.22);
+  --scrim: rgba(200,225,210,.6);
 }
 
 * { box-sizing: border-box; }
@@ -17,7 +44,7 @@ body {
   font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(ellipse at center, #17734a 0%, var(--felt) 45%, var(--felt-dark) 100%);
+    radial-gradient(ellipse at center, var(--felt-glow) 0%, var(--felt) 45%, var(--felt-dark) 100%);
   min-height: 100vh;
 }
 
@@ -37,7 +64,7 @@ body {
 }
 .top h1 span { color: var(--gold); }
 .rule { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
-.rule .red { color: #ff8a9a; font-weight: 700; }
+.rule .red { color: var(--rule-red); font-weight: 700; }
 
 /* ---------- Controls ---------- */
 .controls {
@@ -50,7 +77,7 @@ body {
 }
 .levels {
   display: inline-flex;
-  background: rgba(0,0,0,.25);
+  background: var(--tint);
   border-radius: 999px;
   padding: 4px;
 }
@@ -75,8 +102,8 @@ body {
   font-size: 14px;
   padding: 10px 18px;
   border-radius: 999px;
-  background: var(--text);
-  color: var(--ink);
+  background: var(--restart-bg);
+  color: var(--restart-fg);
   cursor: pointer;
   box-shadow: 0 3px 0 rgba(0,0,0,.3);
   transition: transform .1s;
@@ -92,7 +119,7 @@ body {
   margin: 0 auto 18px;
 }
 .stats > div {
-  background: rgba(0,0,0,.22);
+  background: var(--tint-soft);
   border-radius: 12px;
   padding: 8px 6px;
   text-align: center;
@@ -139,7 +166,7 @@ body {
   border-radius: 7cqw;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  box-shadow: 0 4px 10px rgba(0,0,0,.35);
+  box-shadow: var(--card-shadow);
 }
 
 /* Card back */
@@ -246,7 +273,7 @@ body {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
+  background: var(--scrim);
   display: grid;
   place-items: center;
   padding: 16px;
@@ -266,7 +293,7 @@ body {
 }
 .dialog h2 { margin: 6px 0; font-family: Georgia, serif; font-size: 30px; }
 .dialog p { margin: 6px 0 14px; color: #444; }
-.dialog .restart { background: var(--felt); color: #fff; }
+.dialog .restart { background: var(--felt-button); color: #fff; }
 .trophy { font-size: 48px; }
 .new-best { color: #b7791f !important; font-weight: 700; }
 @keyframes pop-in { from { transform: scale(.7); opacity: 0; } }

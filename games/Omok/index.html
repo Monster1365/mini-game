@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>오목</title>
+<script src="../_shared/theme.js"></script>
 <style>
   :root {
+    color-scheme: dark;
     --bg: #1b1a17;
     --panel: #2a2722;
     --line: #4a443a;
@@ -13,7 +15,20 @@
     --muted: #b3a994;
     --accent: #e8b04a;
     --win: #e5484d;
+    --board-shadow: 0 10px 30px rgba(0,0,0,.45);
   }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f7f2e8;
+    --panel: #ffffff;
+    --line: #ddd3c1;
+    --text: #2b2418;
+    --muted: #7a6d57;
+    --accent: #b8790d;
+    --win: #d12f3a;
+    --board-shadow: 0 10px 28px rgba(90,60,20,.22);
+  }
+  :root[data-theme="light"] .player.white .dot { box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
@@ -70,7 +85,7 @@
   #status { min-height: 1.5em; margin: 0; font-weight: 600; color: var(--muted); text-align: center; }
   #status.win { color: var(--accent); font-size: 1.15rem; }
   .board-wrap { flex: 1; min-height: 0; width: 100%; display: flex; align-items: flex-start; justify-content: center; }
-  canvas { display: block; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.45); cursor: pointer; touch-action: manipulation; }
+  canvas { display: block; border-radius: 6px; box-shadow: var(--board-shadow); cursor: pointer; touch-action: manipulation; }
   canvas.over { cursor: default; }
   canvas.blocked { cursor: not-allowed; }
   #status.warn { color: var(--win); }

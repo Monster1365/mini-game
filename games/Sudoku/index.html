@@ -4,8 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스도쿠</title>
+<script src="../_shared/theme.js"></script>
 <style>
   :root {
+    color-scheme: dark;
+    --grid-line: #8e92d8;
+    --wave: #4d8f6a;
+    --pressed: #221f55;
+    --scrim: rgba(5,6,20,.6);
+    --dialog-shadow: 0 20px 50px rgba(0,0,0,.5);
+    --best: #ffd166;
+    --note-hl: #fff;
     --bg: #0d0e22;
     --panel: #17183a;
     --line: #2c2e62;
@@ -20,6 +29,29 @@
     --error: #ff5d73;
     --user: #9fd0ff;
     --board: min(92vw, 480px, calc(100dvh - 270px));
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f4fb;
+    --panel: #ffffff;
+    --line: #d9dbef;
+    --text: #1d1f3a;
+    --muted: #63668f;
+    --accent: #6a5af9;
+    --cell: #ffffff;
+    --cell-given: #eef0fa;
+    --peer: #e5e7fb;
+    --same: #cdc8ff;
+    --selected: #6a5af9;
+    --error: #e0314f;
+    --user: #2563eb;
+    --grid-line: #9ea2d6;
+    --wave: #b5e8c8;
+    --pressed: #eeebff;
+    --scrim: rgba(235,236,248,.65);
+    --dialog-shadow: 0 20px 50px rgba(40,40,100,.18);
+    --best: #b8860b;
+    --note-hl: #4b3fe0;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
@@ -75,10 +107,10 @@
     display: grid;
     grid-template-columns: repeat(9, 1fr);
     grid-template-rows: repeat(9, 1fr);
-    border: 3px solid #8e92d8;
+    border: 3px solid var(--grid-line);
     border-radius: 10px;
     overflow: hidden;
-    background: #8e92d8;
+    background: var(--grid-line);
     gap: 1px;
   }
   .cell {
@@ -117,16 +149,16 @@
     line-height: 1;
   }
   .notes span { display: flex; align-items: center; justify-content: center; }
-  .notes span.hl { color: #fff; font-weight: 800; }
+  .notes span.hl { color: var(--note-hl); font-weight: 800; }
   .board.done .cell { animation: wave .6s ease-out both; }
-  @keyframes wave { 40% { background: #4d8f6a; } }
+  @keyframes wave { 40% { background: var(--wave); } }
 
   /* ---------- 조작 ---------- */
   .tools, .pad { width: max(var(--board), 280px); display: grid; gap: 6px; }
   .tools { grid-template-columns: repeat(4, 1fr); }
   .tools button { padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .8rem; color: var(--muted); }
   .tools button .ic { font-size: 1.2rem; color: var(--text); }
-  .tools button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: #221f55; }
+  .tools button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--pressed); }
   .tools button[aria-pressed="true"] .ic { color: var(--accent); }
   .tools small { font-size: .7rem; }
   .pad { grid-template-columns: repeat(9, 1fr); }
@@ -136,13 +168,13 @@
   .noteMode .pad button { color: var(--accent); }
 
   /* ---------- 완료 ---------- */
-  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5,6,20,.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--scrim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
   .overlay[hidden] { display: none; }
-  .dialog { width: min(320px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+  .dialog { width: min(320px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; text-align: center; box-shadow: var(--dialog-shadow); }
   .dialog .big { font-size: 3rem; line-height: 1; }
   .dialog h2 { margin: 10px 0 6px; }
   .dialog p { margin: 4px 0; color: var(--muted); }
-  .dialog .best { color: #ffd166; font-weight: 700; }
+  .dialog .best { color: var(--best); font-weight: 700; }
   .board.lost { filter: grayscale(.6) brightness(.8); }
   .dialog .row { display: flex; gap: 8px; margin-top: 18px; }
   .dialog .row button { flex: 1; padding: 11px; font-weight: 700; }

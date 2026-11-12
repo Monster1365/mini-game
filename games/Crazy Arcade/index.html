@@ -4,8 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>물풍선 배틀</title>
+    <script src="../_shared/theme.js"></script>
     <style>
       :root {
+        color-scheme: dark;
         --bg1: #1d2147;
         --bg2: #0f1230;
         --panel: rgba(16, 20, 48, 0.88);
@@ -14,6 +16,29 @@
         --p1: #ff5a6e;
         --p2: #4fa3ff;
         --solo: #ffb627;
+        --frame: #2b3170;
+        --stage-shadow: rgba(0, 0, 0, 0.5);
+        --scrim: rgba(10, 14, 40, 0.62);
+        --title-shadow: 0 4px 0 #2a6fc9, 0 8px 20px rgba(0, 0, 0, 0.4);
+        --kbd-bg: #2d3470;
+        --kbd-line: #4a52a0;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --bg1: #ffffff;
+        --bg2: #dfe8fb;
+        --panel: rgba(255, 255, 255, 0.9);
+        --text: #172046;
+        --muted: #4e5a85;
+        --p1: #e23a52;
+        --p2: #2a7fe0;
+        --solo: #d98a00;
+        --frame: #b9c8ee;
+        --stage-shadow: rgba(30, 50, 110, 0.22);
+        --scrim: rgba(235, 241, 255, 0.78);
+        --title-shadow: 0 4px 0 #9cc4f5, 0 8px 20px rgba(40, 70, 140, 0.18);
+        --kbd-bg: #eef2fd;
+        --kbd-line: #b3c0e6;
       }
       * {
         box-sizing: border-box;
@@ -80,8 +105,8 @@
         border-radius: 14px;
         overflow: hidden;
         box-shadow:
-          0 12px 40px rgba(0, 0, 0, 0.5),
-          0 0 0 4px #2b3170;
+          0 12px 40px var(--stage-shadow),
+          0 0 0 4px var(--frame);
       }
       canvas {
         display: block;
@@ -96,7 +121,7 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        background: rgba(10, 14, 40, 0.62);
+        background: var(--scrim);
         backdrop-filter: blur(2px);
         padding: 16px;
       }
@@ -106,9 +131,7 @@
       h1 {
         font-size: clamp(30px, 6vw, 52px);
         margin: 0 0 6px;
-        text-shadow:
-          0 4px 0 #2a6fc9,
-          0 8px 20px rgba(0, 0, 0, 0.4);
+        text-shadow: var(--title-shadow);
       }
       h2 {
         font-size: clamp(26px, 5vw, 42px);
@@ -179,8 +202,8 @@
         font-size: 14.5px;
       }
       kbd {
-        background: #2d3470;
-        border: 1px solid #4a52a0;
+        background: var(--kbd-bg);
+        border: 1px solid var(--kbd-line);
         border-bottom-width: 3px;
         border-radius: 5px;
         padding: 0 5px;

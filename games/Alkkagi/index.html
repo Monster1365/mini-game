@@ -4,9 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>알까기</title>
+<script src="../_shared/theme.js"></script>
 <style>
   :root {
+    color-scheme: dark;
     --bg: #15171c;
+    --bg-glow: #2a2e38;
     --panel: #22252d;
     --line: #363a45;
     --text: #f1f2f5;
@@ -14,11 +17,29 @@
     --red: #e5484d;
     --blue: #3b82f6;
     --accent: #f5c451;
+    --scrim: rgba(10, 11, 14, .55);
+    --dialog-shadow: 0 20px 50px rgba(0,0,0,.5);
+    --board-shadow: rgba(0,0,0,.6);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #eef0f4;
+    --bg-glow: #ffffff;
+    --panel: #ffffff;
+    --line: #d7dbe3;
+    --text: #1d2029;
+    --muted: #606776;
+    --red: #d93a40;
+    --blue: #2f6fe0;
+    --accent: #e0a92a;
+    --scrim: rgba(230, 233, 240, .6);
+    --dialog-shadow: 0 20px 50px rgba(30,40,70,.2);
+    --board-shadow: rgba(60,40,15,.35);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
-    background: radial-gradient(ellipse at 50% 55%, #2a2e38 0%, var(--bg) 70%);
+    background: radial-gradient(ellipse at 50% 55%, var(--bg-glow) 0%, var(--bg) 70%);
     color: var(--text);
     font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     display: flex;
@@ -82,7 +103,7 @@
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: rgba(10, 11, 14, .55);
+    background: var(--scrim);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
   }
@@ -94,7 +115,7 @@
     border-radius: 18px;
     padding: 24px;
     text-align: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    box-shadow: var(--dialog-shadow);
   }
   .dialog h2 { margin: 0 0 4px; font-size: 1.6rem; }
   .dialog .sub { margin: 0 0 20px; color: var(--muted); font-size: .9rem; }
@@ -529,7 +550,7 @@ const Renderer = (() => {
   function drawBoard(state) {
     // 바닥 그림자 + 판 두께
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,.6)';
+    ctx.shadowColor = GameTheme.css('--board-shadow');
     ctx.shadowBlur = 40;
     ctx.shadowOffsetY = 20;
     ctx.fillStyle = '#8a5a26';

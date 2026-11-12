@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>끝말잇기</title>
+<script src="../_shared/theme.js"></script>
 <style>
+  /* 라이트 기본 · 다크는 [data-theme="dark"] (../_shared/theme.js가 사이트/브라우저 설정에 맞춰 지정) */
   :root {
+    color-scheme: light;
     --bg: #f4f1ea;
     --card: #ffffff;
     --ink: #1f2328;
@@ -18,20 +21,19 @@
     --warn: #e08a00;
     --chip: #f1eee6;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #16181d;
-      --card: #20232a;
-      --ink: #eceef2;
-      --muted: #9aa1ad;
-      --line: #333843;
-      --accent: #5b8cff;
-      --accent-ink: #0d1117;
-      --good: #3ecf7c;
-      --bad: #ff6b6b;
-      --warn: #ffb547;
-      --chip: #2a2e37;
-    }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #16181d;
+    --card: #20232a;
+    --ink: #eceef2;
+    --muted: #9aa1ad;
+    --line: #333843;
+    --accent: #5b8cff;
+    --accent-ink: #0d1117;
+    --good: #3ecf7c;
+    --bad: #ff6b6b;
+    --warn: #ffb547;
+    --chip: #2a2e37;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }

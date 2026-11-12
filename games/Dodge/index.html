@@ -4,15 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Dodge</title>
+<script src="../_shared/theme.js"></script>
 <style>
-  :root { --bg:#0b0d12; --panel:#141821; --fg:#e8ecf3; --muted:#8a93a6; --accent:#5ad1ff; --danger:#ff5a6e; }
+  :root {
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#141821; --border:#232938; --fg:#e8ecf3; --muted:#8a93a6;
+    --accent:#5ad1ff; --danger:#ff5a6e; --hot:#ffb347;
+    --grid:rgba(255,255,255,0.035); --overlay:rgba(11,13,18,0.72); --glow:12;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg:#eef1f6; --panel:#ffffff; --border:#d5dae4; --fg:#161b26; --muted:#5b6475;
+    --accent:#0a84c6; --danger:#e0334b; --hot:#e07800;
+    --grid:rgba(20,30,60,0.06); --overlay:rgba(238,241,246,0.82); --glow:6;
+  }
   * { box-sizing: border-box; }
   html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow:hidden; touch-action:none; }
   #wrap { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:16px; }
   #hud { display:flex; justify-content:space-between; width:var(--size); font-size:15px; color:var(--muted); }
   #hud b { color:var(--fg); font-weight:600; }
-  canvas { width:var(--size); height:var(--size); background:var(--panel); border:1px solid #232938; border-radius:6px; display:block; }
+  canvas { width:var(--size); height:var(--size); background:var(--panel); border:1px solid var(--border); border-radius:6px; display:block; }
   #help { font-size:12px; color:var(--muted); text-align:center; }
 </style>
 </head>
@@ -30,6 +42,15 @@
   const $time = document.getElementById('time');
   const $count = document.getElementById('count');
   const $best = document.getElementById('best');
+
+  // ---- theme (CSS 변수에서 캔버스 색을 읽는다) ----
+  const C = {};
+  function readTheme() {
+    for (const k of ['panel', 'fg', 'muted', 'accent', 'danger', 'hot', 'grid', 'overlay', 'glow']) C[k] = GameTheme.css('--' + k);
+    C.glow = Number(C.glow) || 0;
+  }
+  readTheme();
+  window.addEventListener('themechange', readTheme);
 
   // ---- layout / HiDPI ----
   function resize() {
@@ -177,11 +198,11 @@
 
   // ---- draw ----
   function draw() {
-    ctx.fillStyle = '#141821';
+    ctx.fillStyle = C.panel;
     ctx.fillRect(0, 0, W, H);
 
     // subtle grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.strokeStyle = C.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 25; i < W; i += 25) { ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.moveTo(0, i); ctx.lineTo(W, i); }
@@ -189,14 +210,14 @@
 
     // bullets
     for (const b of bullets) {
-      ctx.fillStyle = b.hue === 'hot' ? '#ffb347' : '#ff5a6e';
+      ctx.fillStyle = b.hue === 'hot' ? C.hot : C.danger;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
     }
 
     // player
     if (state !== 'over') {
-      ctx.shadowColor = '#5ad1ff'; ctx.shadowBlur = 12;
-      ctx.fillStyle = '#5ad1ff';
+      ctx.shadowColor = C.accent; ctx.shadowBlur = C.glow;
+      ctx.fillStyle = C.accent;
       ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
     }
@@ -204,7 +225,7 @@
     // particles
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
-      ctx.fillStyle = '#5ad1ff';
+      ctx.fillStyle = C.accent;
       ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
     }
     ctx.globalAlpha = 1;
@@ -213,25 +234,25 @@
     ctx.textAlign = 'center';
     if (state === 'ready') {
       overlay();
-      text('DODGE', W/2, H/2 - 30, 42, '#e8ecf3', 'bold');
-      text('사방에서 날아오는 총알을 피하세요', W/2, H/2 + 10, 15, '#8a93a6');
-      text('Space / Enter / 탭 으로 시작', W/2, H/2 + 44, 15, '#5ad1ff');
+      text('DODGE', W/2, H/2 - 30, 42, C.fg, 'bold');
+      text('사방에서 날아오는 총알을 피하세요', W/2, H/2 + 10, 15, C.muted);
+      text('Space / Enter / 탭 으로 시작', W/2, H/2 + 44, 15, C.accent);
     } else if (state === 'paused') {
       overlay();
-      text('PAUSED', W/2, H/2, 32, '#e8ecf3', 'bold');
-      text('P 또는 탭으로 계속', W/2, H/2 + 34, 14, '#8a93a6');
+      text('PAUSED', W/2, H/2, 32, C.fg, 'bold');
+      text('P 또는 탭으로 계속', W/2, H/2 + 34, 14, C.muted);
     } else if (state === 'over' && particles.length === 0) {
       overlay();
-      text('GAME OVER', W/2, H/2 - 40, 36, '#ff5a6e', 'bold');
-      text(elapsed.toFixed(2) + ' 초 생존', W/2, H/2, 22, '#e8ecf3');
-      if (newRecord) text('NEW RECORD!', W/2, H/2 + 30, 15, '#ffb347', 'bold');
-      text('Space / Enter / 탭 으로 다시 시작', W/2, H/2 + 64, 14, '#5ad1ff');
+      text('GAME OVER', W/2, H/2 - 40, 36, C.danger, 'bold');
+      text(elapsed.toFixed(2) + ' 초 생존', W/2, H/2, 22, C.fg);
+      if (newRecord) text('NEW RECORD!', W/2, H/2 + 30, 15, C.hot, 'bold');
+      text('Space / Enter / 탭 으로 다시 시작', W/2, H/2 + 64, 14, C.accent);
     }
 
     $time.textContent = elapsed.toFixed(2);
     $count.textContent = bullets.length;
   }
-  function overlay() { ctx.fillStyle = 'rgba(11,13,18,0.72)'; ctx.fillRect(0, 0, W, H); }
+  function overlay() { ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, W, H); }
   function text(s, x, y, size, color, weight = '') {
     ctx.font = `${weight} ${size}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.fillStyle = color; ctx.fillText(s, x, y);
