@@ -1,11 +1,11 @@
-// 루트의 게임 폴더(index.html이 있는 폴더)를 찾아 public/play/<slug>/ 로 복사하고
+// games/ 안의 게임 폴더(index.html이 있는 폴더)를 찾아 public/play/<slug>/ 로 복사하고
 // lib/games.generated.json 목록을 만든다. dev/build 전에 자동 실행된다.
 import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const gamesDir = path.join(root, "games");
 const outDir = path.join(root, "public", "play");
-const IGNORE = new Set(["node_modules", "public", "app", "lib", "scripts", ".next", ".git", ".vercel", "out"]);
 
 const slugify = (s) =>
   s.toLowerCase().trim().replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-+|-+$/g, "");
@@ -14,9 +14,9 @@ fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 
 const games = [];
-for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-  if (!entry.isDirectory() || entry.name.startsWith(".") || IGNORE.has(entry.name)) continue;
-  const dir = path.join(root, entry.name);
+for (const entry of fs.readdirSync(gamesDir, { withFileTypes: true })) {
+  if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name.startsWith("_")) continue;
+  const dir = path.join(gamesDir, entry.name);
   const indexPath = path.join(dir, "index.html");
   if (!fs.existsSync(indexPath)) continue;
 
@@ -42,6 +42,10 @@ for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     description: meta.description || "",
   });
 }
+
+// 게임들이 함께 쓰는 파일 (예: _shared/theme.js) → /play/_shared/
+const sharedDir = path.join(gamesDir, "_shared");
+if (fs.existsSync(sharedDir)) fs.cpSync(sharedDir, path.join(outDir, "_shared"), { recursive: true });
 
 games.sort((a, b) => a.title.localeCompare(b.title, "ko"));
 fs.writeFileSync(path.join(root, "lib", "games.generated.json"), JSON.stringify(games, null, 2) + "\n");
