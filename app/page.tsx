@@ -1,10 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { games } from "@/lib/games";
+import SettingsMenu from "./SettingsMenu";
 
 export default function Home() {
   return (
     <main className="home">
+      <SettingsMenu />
       <header className="hero">
         <h1>
           <Image src="/images/logo.png" alt="" width={72} height={72} className="logo" priority />
