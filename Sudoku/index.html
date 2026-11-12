@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스도쿠</title>
+<style>
+  :root {
+    --bg: #0d0e22;
+    --panel: #17183a;
+    --line: #2c2e62;
+    --text: #eceeff;
+    --muted: #9b9fcc;
+    --accent: #8b7bff;
+    --cell: #1b1d44;
+    --cell-given: #23255a;
+    --peer: #232766;
+    --same: #3a3a96;
+    --selected: #5b4fd6;
+    --error: #ff5d73;
+    --user: #9fd0ff;
+    --board: min(92vw, 480px, calc(100dvh - 270px));
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px 20px;
+    user-select: none;
+    -webkit-user-select: none;
+    word-break: keep-all;
+  }
+  button {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .35; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- 상단 ---------- */
+  .top {
+    width: max(var(--board), 280px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .levels { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .levels button { border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-weight: 600; }
+  .levels button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .info { display: flex; align-items: center; gap: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .info b { color: var(--text); }
+  .info .mistakes.has b { color: var(--error); }
+  .info .mistakes.shake { animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  #newBtn { padding: 7px 12px; }
+
+  /* ---------- 보드 ---------- */
+  .board {
+    width: max(var(--board), 280px);
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    border: 3px solid #8e92d8;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #8e92d8;
+    gap: 1px;
+  }
+  .cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cell);
+    font-size: calc(max(var(--board), 280px) / 9 * .56);
+    font-weight: 600;
+    color: var(--user);
+    cursor: pointer;
+    transition: background .08s;
+  }
+  /* 3×3 박스 경계 굵게 */
+  .cell.bR { margin-right: 2px; }
+  .cell.bB { margin-bottom: 2px; }
+  .cell.given { background: var(--cell-given); color: var(--text); font-weight: 700; }
+  .cell.peer { background: var(--peer); }
+  .cell.same { background: var(--same); }
+  .cell.selected { background: var(--selected); color: #fff; }
+  .cell.conflict, .cell.wrong { color: var(--error); }
+  .cell.selected.wrong { color: #ffd0d7; }
+  .cell.given.conflict { box-shadow: inset 0 0 0 2px var(--error); }
+  .cell.pop { animation: pop .22s ease-out; }
+  @keyframes pop { 50% { transform: scale(1.15); } }
+  .notes {
+    position: absolute;
+    inset: 2px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    font-size: calc(max(var(--board), 280px) / 9 * .24);
+    font-weight: 500;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .notes span { display: flex; align-items: center; justify-content: center; }
+  .notes span.hl { color: #fff; font-weight: 800; }
+  .board.done .cell { animation: wave .6s ease-out both; }
+  @keyframes wave { 40% { background: #4d8f6a; } }
+
+  /* ---------- 조작 ---------- */
+  .tools, .pad { width: max(var(--board), 280px); display: grid; gap: 6px; }
+  .tools { grid-template-columns: repeat(4, 1fr); }
+  .tools button { padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .8rem; color: var(--muted); }
+  .tools button .ic { font-size: 1.2rem; color: var(--text); }
+  .tools button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: #221f55; }
+  .tools button[aria-pressed="true"] .ic { color: var(--accent); }
+  .tools small { font-size: .7rem; }
+  .pad { grid-template-columns: repeat(9, 1fr); }
+  .pad button { aspect-ratio: 1 / 1.2; font-size: clamp(1.1rem, 4.5vw, 1.6rem); font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; }
+  .pad button small { font-size: .62rem; color: var(--muted); font-weight: 500; }
+  .pad button.complete { opacity: .3; }
+  .noteMode .pad button { color: var(--accent); }
+
+  /* ---------- 완료 ---------- */
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5,6,20,.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  .overlay[hidden] { display: none; }
+  .dialog { width: min(320px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+  .dialog .big { font-size: 3rem; line-height: 1; }
+  .dialog h2 { margin: 10px 0 6px; }
+  .dialog p { margin: 4px 0; color: var(--muted); }
+  .dialog .best { color: #ffd166; font-weight: 700; }
+  .board.lost { filter: grayscale(.6) brightness(.8); }
+  .dialog .row { display: flex; gap: 8px; margin-top: 18px; }
+  .dialog .row button { flex: 1; padding: 11px; font-weight: 700; }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="levels" role="group" aria-label="난이도">
+      <button type="button" data-level="easy">초급</button>
+      <button type="button" data-level="medium">중급</button>
+      <button type="button" data-level="hard">고급</button>
+    </div>
+    <div class="info">
+      <span class="mistakes" id="mistakesBox">실수 <b id="mistakes">0/3</b></span>
+      <span>⏱ <b id="time">0:00</b></span>
+      <button type="button" id="newBtn">↻ 새 게임</button>
+    </div>
+  </div>
+
+  <div class="board" id="board" role="grid" aria-label="스도쿠 판"></div>
+
+  <div class="tools">
+    <button type="button" id="undoBtn"><span class="ic">↶</span>되돌리기</button>
+    <button type="button" id="eraseBtn"><span class="ic">⌫</span>지우기</button>
+    <button type="button" id="noteBtn" aria-pressed="false"><span class="ic">✎</span>메모 <small id="noteState">끔</small></button>
+    <button type="button" id="hintBtn"><span class="ic">💡</span>힌트 <small id="hintCount"></small></button>
+  </div>
+  <div class="pad" id="pad"></div>
+
+  <div class="overlay" id="lose" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loseTitle">
+      <div class="big">💥</div>
+      <h2 id="loseTitle">게임 오버</h2>
+      <p>실수를 3번 했어요.</p>
+      <div class="row">
+        <button type="button" id="retryBtn">같은 퍼즐 다시</button>
+        <button type="button" class="primary" id="loseNewBtn">새 게임</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="win" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+      <div class="big">🎉</div>
+      <h2 id="winTitle">완성!</h2>
+      <p id="winText"></p>
+      <p id="winBest" class="best" hidden>🏆 새 최고 기록!</p>
+      <div class="row">
+        <button type="button" id="closeWinBtn">닫기</button>
+        <button type="button" class="primary" id="againBtn">새 게임</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+ * 1. 스도쿠 엔진 — 풀이·생성 (화면과 무관)
+ *    격자는 길이 81 배열, 빈칸은 0
+ * ===================================================================== */
+const Sudoku = (() => {
+  const ALL = 0x3FE; // 비트 1~9
+  const rowOf = i => (i / 9) | 0, colOf = i => i % 9;
+  const boxOf = i => ((rowOf(i) / 3) | 0) * 3 + ((colOf(i) / 3) | 0);
+  const bitCount = m => { let n = 0; while (m) { m &= m - 1; n++; } return n; };
+  const bitsOf = m => { const out = []; for (let d = 1; d <= 9; d++) if (m & (1 << d)) out.push(d); return out; };
+
+  // 각 칸의 같은 행/열/박스 칸 목록
+  const PEERS = Array.from({ length: 81 }, (_, i) => {
+    const s = new Set();
+    for (let j = 0; j < 81; j++) {
+      if (j !== i && (rowOf(j) === rowOf(i) || colOf(j) === colOf(i) || boxOf(j) === boxOf(i))) s.add(j);
+    }
+    return [...s];
+  });
+  const UNITS = [];
+  for (let k = 0; k < 9; k++) {
+    UNITS.push(Array.from({ length: 9 }, (_, j) => k * 9 + j));                       // 행
+    UNITS.push(Array.from({ length: 9 }, (_, j) => j * 9 + k));                       // 열
+    UNITS.push(Array.from({ length: 9 }, (_, j) => (((k / 3) | 0) * 3 + ((j / 3) | 0)) * 9 + (k % 3) * 3 + (j % 3))); // 박스
+  }
+
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  // 백트래킹 풀이. limit개의 해를 찾으면 멈춤. random이면 숫자 순서를 섞음.
+  function search(grid, limit, random) {
+    const g = grid.slice();
+    const rows = new Array(9).fill(0), cols = new Array(9).fill(0), boxes = new Array(9).fill(0);
+    for (let i = 0; i < 81; i++) {
+      const d = g[i];
+      if (!d) continue;
+      const bit = 1 << d, r = rowOf(i), c = colOf(i), b = boxOf(i);
+      if ((rows[r] | cols[c] | boxes[b]) & bit) return { count: 0, solution: null };
+      rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+    }
+    let count = 0, solution = null;
+    (function rec() {
+      let best = -1, bestMask = 0, bestCnt = 10;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        const m = ALL & ~(rows[rowOf(i)] | cols[colOf(i)] | boxes[boxOf(i)]);
+        const n = bitCount(m);
+        if (n < bestCnt) { best = i; bestMask = m; bestCnt = n; if (n === 0) return; }
+      }
+      if (best < 0) { count++; if (!solution) solution = g.slice(); return; }
+      const r = rowOf(best), c = colOf(best), b = boxOf(best);
+      const digits = bitsOf(bestMask);
+      if (random) shuffle(digits);
+      for (const d of digits) {
+        const bit = 1 << d;
+        g[best] = d; rows[r] |= bit; cols[c] |= bit; boxes[b] |= bit;
+        rec();
+        g[best] = 0; rows[r] &= ~bit; cols[c] &= ~bit; boxes[b] &= ~bit;
+        if (count >= limit) return;
+      }
+    })();
+    return { count, solution };
+  }
+
+  // 논리 풀이: naked single(칸에 후보가 하나) + 선택적으로 hidden single(유닛에 자리가 하나)
+  function solvableByLogic(grid, allowHidden) {
+    const g = grid.slice();
+    const cand = i => {
+      let m = ALL;
+      for (const p of PEERS[i]) if (g[p]) m &= ~(1 << g[p]);
+      return m;
+    };
+    for (;;) {
+      let progress = false, empty = 0;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        empty++;
+        const m = cand(i);
+        if (!m) return false;
+        if (bitCount(m) === 1) { g[i] = bitsOf(m)[0]; progress = true; }
+      }
+      if (!empty) return true;
+      if (!progress && allowHidden) {
+        for (const unit of UNITS) {
+          for (let d = 1; d <= 9; d++) {
+            if (unit.some(i => g[i] === d)) continue;
+            const spots = unit.filter(i => !g[i] && cand(i) & (1 << d));
+            if (spots.length === 1) { g[spots[0]] = d; progress = true; }
+          }
+        }
+      }
+      if (!progress) return false;
+    }
+  }
+
+  const LEVELS = {
+    easy:   { givens: 40, logic: 'naked' },
+    medium: { givens: 32, logic: 'hidden' },
+    hard:   { givens: 24, logic: null },
+  };
+
+  function generate(level) {
+    const cfg = LEVELS[level];
+    const solution = search(new Array(81).fill(0), 1, true).solution;
+    const puzzle = solution.slice();
+    let givens = 81;
+    // 대칭 쌍(i, 80-i)으로 지워서 보기 좋은 모양 유지
+    const order = shuffle(Array.from({ length: 41 }, (_, i) => i));
+    for (const i of order) {
+      if (givens <= cfg.givens) break;
+      const pair = i === 40 ? [40] : [i, 80 - i];
+      const saved = pair.map(j => puzzle[j]);
+      pair.forEach(j => (puzzle[j] = 0));
+      const ok = search(puzzle, 2, false).count === 1 &&
+        (!cfg.logic || solvableByLogic(puzzle, cfg.logic === 'hidden'));
+      if (ok) givens -= pair.length;
+      else pair.forEach((j, k) => (puzzle[j] = saved[k]));
+    }
+    return { puzzle, solution };
+  }
+
+  return { rowOf, colOf, boxOf, PEERS, generate };
+})();
+
+/* =====================================================================
+ * 2. 게임 상태 · 화면
+ * ===================================================================== */
+(() => {
+  const $ = id => document.getElementById(id);
+  const SAVE_KEY = 'sudoku-save';
+  const BEST_KEY = 'sudoku-best';
+  const LEVEL_NAME = { easy: '초급', medium: '중급', hard: '고급' };
+  const MAX_HINTS = 3;
+  const MAX_MISTAKES = 3;
+
+  const boardEl = $('board'), padEl = $('pad');
+  let game = null;          // { level, puzzle, solution, values, notes, elapsed, hints, mistakes, started, done, lost }
+  let selected = null;
+  let noteMode = false;
+  let history = [];
+  let timer = 0;
+
+  // ---------- 보드 DOM 생성 (한 번) ----------
+  const cells = [];
+  for (let i = 0; i < 81; i++) {
+    const el = document.createElement('div');
+    const r = Sudoku.rowOf(i), c = Sudoku.colOf(i);
+    el.className = 'cell' + (c === 2 || c === 5 ? ' bR' : '') + (r === 2 || r === 5 ? ' bB' : '');
+    el.setAttribute('role', 'gridcell');
+    el.addEventListener('pointerdown', () => select(i));
+    boardEl.appendChild(el);
+    cells.push(el);
+  }
+  const padBtns = [];
+  for (let d = 1; d <= 9; d++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `${d}<small></small>`;
+    b.addEventListener('click', () => input(d));
+    padEl.appendChild(b);
+    padBtns.push(b);
+  }
+
+  // ---------- 저장 ----------
+  function save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); } catch (e) {}
+  }
+  function loadSaved() {
+    try {
+      const g = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+      if (g && !g.done && Array.isArray(g.values) && g.values.length === 81 && LEVEL_NAME[g.level]) {
+        return { mistakes: 0, started: g.elapsed > 0, lost: false, ...g };
+      }
+    } catch (e) {}
+    return null;
+  }
+  function bests() {
+    try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+
+  // ---------- 게임 시작 ----------
+  function newGame(level) {
+    const { puzzle, solution } = Sudoku.generate(level);
+    startWith(freshState(level, puzzle, solution));
+  }
+  function freshState(level, puzzle, solution) {
+    return {
+      level, puzzle, solution,
+      values: puzzle.slice(), notes: new Array(81).fill(0),
+      elapsed: 0, hints: 0, mistakes: 0, started: false, done: false, lost: false,
+    };
+  }
+  function retry() {
+    startWith(freshState(game.level, game.puzzle, game.solution));
+  }
+  function startWith(g) {
+    game = g;
+    selected = null;
+    history = [];
+    $('win').hidden = true;
+    $('lose').hidden = true;
+    boardEl.classList.remove('done', 'lost');
+    document.querySelectorAll('.levels button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === game.level)));
+    startTimer();
+    render();
+    save();
+  }
+
+  // ---------- 타이머 ----------
+  const fmt = s => `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`;
+  function startTimer() {
+    clearInterval(timer);
+    $('time').textContent = fmt(game.elapsed);
+    timer = setInterval(() => {
+      if (!game.started || game.done || document.hidden) return;
+      game.elapsed++;
+      $('time').textContent = fmt(game.elapsed);
+      if (game.elapsed % 5 === 0) save();
+    }, 1000);
+  }
+
+  // 첫 수를 둔 순간부터 시간을 잰다
+  function markStarted() {
+    if (game.started) return;
+    game.started = true;
+    startTimer();
+  }
+
+  // ---------- 입력 ----------
+  function select(i) {
+    selected = i;
+    render();
+  }
+
+  function snapshot() {
+    history.push({ values: game.values.slice(), notes: game.notes.slice() });
+    if (history.length > 300) history.shift();
+  }
+
+  function input(d) {
+    if (game.done || selected === null || game.puzzle[selected]) return;
+    const i = selected;
+    if (noteMode) {
+      if (game.values[i]) return;
+      snapshot();
+      game.notes[i] ^= 1 << d;
+    } else {
+      if (game.values[i] === d) return;
+      snapshot();
+      game.values[i] = d;
+      game.notes[i] = 0;
+      if (d === game.solution[i]) {
+        // 같은 행/열/박스 메모에서 해당 숫자 자동 제거
+        for (const p of Sudoku.PEERS[i]) game.notes[p] &= ~(1 << d);
+        cells[i].classList.remove('pop'); void cells[i].offsetWidth; cells[i].classList.add('pop');
+      } else {
+        addMistake();
+      }
+    }
+    markStarted();
+    afterChange();
+  }
+
+  function addMistake() {
+    game.mistakes++;
+    const box = $('mistakesBox');
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+    if (game.mistakes >= MAX_MISTAKES) lose();
+  }
+
+  function lose() {
+    game.done = true;
+    game.lost = true;
+    clearInterval(timer);
+    boardEl.classList.add('lost');
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    setTimeout(() => { if (game.lost) $('lose').hidden = false; }, 600);
+  }
+
+  function erase() {
+    if (game.done || selected === null || game.puzzle[selected]) return;
+    if (!game.values[selected] && !game.notes[selected]) return;
+    snapshot();
+    game.values[selected] = 0;
+    game.notes[selected] = 0;
+    afterChange();
+  }
+
+  function undo() {
+    if (game.done || !history.length) return;
+    const h = history.pop();
+    game.values = h.values;
+    game.notes = h.notes;
+    afterChange();
+  }
+
+  function hint() {
+    if (game.done || game.hints >= MAX_HINTS) return;
+    // 선택한 칸이 비었거나 틀렸으면 그 칸, 아니면 빈 칸 중 무작위
+    let i = selected;
+    if (i === null || game.puzzle[i] || game.values[i] === game.solution[i]) {
+      const targets = [];
+      for (let j = 0; j < 81; j++) if (game.values[j] !== game.solution[j]) targets.push(j);
+      if (!targets.length) return;
+      i = targets[(Math.random() * targets.length) | 0];
+    }
+    snapshot();
+    markStarted();
+    game.hints++;
+    selected = i;
+    game.values[i] = game.solution[i];
+    game.notes[i] = 0;
+    for (const p of Sudoku.PEERS[i]) game.notes[p] &= ~(1 << game.values[i]);
+    cells[i].classList.remove('pop'); void cells[i].offsetWidth; cells[i].classList.add('pop');
+    afterChange();
+  }
+
+  function setNoteMode(on) {
+    noteMode = on;
+    $('noteBtn').setAttribute('aria-pressed', String(on));
+    $('noteState').textContent = on ? '켬' : '끔';
+    document.body.classList.toggle('noteMode', on);
+  }
+
+  function afterChange() {
+    if (game.lost) { render(); return; }   // lose()가 저장 데이터를 지운다
+    const solved = game.values.every((v, i) => v === game.solution[i]);
+    if (solved) finish();   // finish()가 저장 데이터를 지운다
+    else save();
+    render();
+  }
+
+  function finish() {
+    game.done = true;
+    clearInterval(timer);
+    selected = null;
+    boardEl.classList.add('done');
+    cells.forEach((el, i) => (el.style.animationDelay = (Sudoku.rowOf(i) + Sudoku.colOf(i)) * 30 + 'ms'));
+    const all = bests();
+    const prev = all[game.level];
+    const isBest = game.hints === 0 && (!prev || game.elapsed < prev);
+    if (isBest) {
+      all[game.level] = game.elapsed;
+      try { localStorage.setItem(BEST_KEY, JSON.stringify(all)); } catch (e) {}
+    }
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    const best = isBest ? game.elapsed : prev;
+    $('winText').innerHTML =
+      `${LEVEL_NAME[game.level]} · ${fmt(game.elapsed)}${game.hints ? ` · 힌트 ${game.hints}회` : ''}${game.mistakes ? ` · 실수 ${game.mistakes}회` : ''}` +
+      (best != null ? `<br>최고 기록 ${fmt(best)} <small>(힌트 없이)</small>` : '');
+    $('winBest').hidden = !isBest;
+    setTimeout(() => { if (game.done) $('win').hidden = false; }, 700);
+  }
+
+  // ---------- 그리기 ----------
+  function conflicts() {
+    const bad = new Set();
+    for (let i = 0; i < 81; i++) {
+      const v = game.values[i];
+      if (!v) continue;
+      for (const p of Sudoku.PEERS[i]) if (game.values[p] === v) { bad.add(i); bad.add(p); }
+    }
+    return bad;
+  }
+
+  function render() {
+    const bad = conflicts();
+    const sel = selected;
+    const selVal = sel !== null ? game.values[sel] : 0;
+    const peers = sel !== null ? new Set(Sudoku.PEERS[sel]) : new Set();
+    for (let i = 0; i < 81; i++) {
+      const el = cells[i], v = game.values[i];
+      el.classList.toggle('given', !!game.puzzle[i]);
+      el.classList.toggle('selected', i === sel);
+      el.classList.toggle('peer', peers.has(i));
+      el.classList.toggle('same', !!selVal && v === selVal && i !== sel);
+      el.classList.toggle('conflict', bad.has(i));
+      el.classList.toggle('wrong', !game.puzzle[i] && !!v && v !== game.solution[i]);
+      if (!game.done) el.style.animationDelay = '';
+      if (v) {
+        el.textContent = v;
+      } else if (game.notes[i]) {
+        let html = '<div class="notes">';
+        for (let d = 1; d <= 9; d++) {
+          const on = game.notes[i] & (1 << d);
+          html += `<span class="${on && d === selVal ? 'hl' : ''}">${on ? d : ''}</span>`;
+        }
+        el.innerHTML = html + '</div>';
+      } else {
+        el.textContent = '';
+      }
+      const r = Sudoku.rowOf(i) + 1, c = Sudoku.colOf(i) + 1;
+      el.setAttribute('aria-label', `${r}행 ${c}열 ${v || '빈칸'}`);
+    }
+    // 숫자 패드: 남은 개수
+    const counts = new Array(10).fill(0);
+    game.values.forEach(v => v && counts[v]++);
+    padBtns.forEach((b, k) => {
+      const left = 9 - counts[k + 1];
+      b.querySelector('small').textContent = left > 0 ? left : '';
+      b.classList.toggle('complete', left <= 0);
+    });
+    $('undoBtn').disabled = game.done || !history.length;
+    $('hintBtn').disabled = game.done || game.hints >= MAX_HINTS;
+    $('hintCount').textContent = `${MAX_HINTS - game.hints}/${MAX_HINTS}`;
+    $('mistakes').textContent = `${game.mistakes}/${MAX_MISTAKES}`;
+    $('mistakesBox').classList.toggle('has', game.mistakes > 0);
+  }
+
+  // ---------- 이벤트 ----------
+  document.querySelectorAll('.levels button').forEach(b => b.addEventListener('click', () => newGame(b.dataset.level)));
+  $('newBtn').onclick = () => newGame(game.level);
+  $('againBtn').onclick = () => newGame(game.level);
+  $('closeWinBtn').onclick = () => { $('win').hidden = true; };
+  $('retryBtn').onclick = retry;
+  $('loseNewBtn').onclick = () => newGame(game.level);
+  $('undoBtn').onclick = undo;
+  $('eraseBtn').onclick = erase;
+  $('hintBtn').onclick = hint;
+  $('noteBtn').onclick = () => setNoteMode(!noteMode);
+
+  window.addEventListener('keydown', e => {
+    if (!game) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[1-9]$/.test(e.key)) { input(Number(e.key)); return; }
+    if (e.code && /^(Digit|Numpad)[1-9]$/.test(e.code)) { input(Number(e.code.slice(-1))); return; }
+    if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') { e.preventDefault(); erase(); return; }
+    if (e.key.toLowerCase() === 'n' || e.key === 'ㅜ') { setNoteMode(!noteMode); return; }
+    const move = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (move !== undefined) {
+      e.preventDefault();
+      if (selected === null) { select(40); return; }
+      const r = Sudoku.rowOf(selected), c = Sudoku.colOf(selected);
+      const nr = (r + (move === -9 ? -1 : move === 9 ? 1 : 0) + 9) % 9;
+      const nc = (c + (move === -1 ? -1 : move === 1 ? 1 : 0) + 9) % 9;
+      select(nr * 9 + nc);
+    }
+    if (e.key === 'Escape') { selected = null; render(); }
+  });
+
+  // ---------- 시작 ----------
+  setNoteMode(false);
+  const saved = loadSaved();
+  if (saved) startWith(saved);
+  else newGame('easy');
+})();
+</script>
+</body>
+</html>
