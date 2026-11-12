@@ -11,7 +11,10 @@ export default function Home() {
         <SettingsMenu />
         <div className="banner-content">
           <h1>
-            미니게임 <span className="glow">아케이드</span>
+            미니게임{" "}
+            <span className="glow" data-text="아케이드">
+              아케이드
+            </span>
           </h1>
           <p>설치 없이 브라우저에서 바로 플레이하세요. 총 {games.length}개의 게임</p>
         </div>

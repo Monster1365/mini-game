@@ -20,9 +20,7 @@
   --banner-sub: #d9d5ff;
   --banner-scrim: rgba(7, 7, 29, 0.6);
   --banner-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 24px rgba(7, 7, 29, 0.9);
-  --title-stroke: rgba(10, 8, 36, 0.95);
-  --title-shadow: 0 3px 0 rgba(10, 8, 36, 0.9), 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 42px rgba(150, 100, 255, 0.55);
-  --title-glow: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 16px rgba(200, 110, 255, 0.6));
+  --title-drop: rgba(0, 0, 0, 0.55);
 }
 
 @media (prefers-color-scheme: light) {
@@ -45,9 +43,7 @@
     --banner-sub: #3e3a66;
     --banner-scrim: rgba(246, 245, 255, 0.72);
     --banner-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 22px rgba(246, 245, 255, 0.95);
-    --title-stroke: #ffffff;
-    --title-shadow: 0 3px 0 #ffffff, 0 8px 22px rgba(90, 60, 200, 0.35), 0 0 36px rgba(255, 255, 255, 0.9);
-    --title-glow: drop-shadow(0 6px 14px rgba(124, 77, 255, 0.35)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.9));
+    --title-drop: rgba(60, 30, 140, 0.3);
   }
 }
 
@@ -70,9 +66,7 @@
   --banner-sub: #3e3a66;
   --banner-scrim: rgba(246, 245, 255, 0.72);
   --banner-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 22px rgba(246, 245, 255, 0.95);
-  --title-stroke: #ffffff;
-  --title-shadow: 0 3px 0 #ffffff, 0 8px 22px rgba(90, 60, 200, 0.35), 0 0 36px rgba(255, 255, 255, 0.9);
-  --title-glow: drop-shadow(0 6px 14px rgba(124, 77, 255, 0.35)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.9));
+  --title-drop: rgba(60, 30, 140, 0.3);
 }
 
 * { box-sizing: border-box; }
@@ -116,32 +110,52 @@ a { color: inherit; }
   text-align: center;
 }
 .banner h1 {
-  margin: 0 0 14px;
+  /* 3D 입체 글자: 아래로 층층이 쌓인 그림자 = 옆면, 마지막은 바닥 그림자 */
+  --step: 0.012em;
+  margin: 0 0 18px;
   font-size: clamp(2.6rem, 8.5vw, 4.6rem);
   font-weight: 900;
   line-height: 1.1;
-  letter-spacing: -0.02em;
-  color: var(--banner-title);
-  /* 외곽선은 글자 바깥쪽에만 (paint-order) */
-  -webkit-text-stroke: 0.09em var(--title-stroke);
-  paint-order: stroke fill;
-  text-shadow: var(--title-shadow);
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-shadow:
+    0 calc(var(--step) * 1) 0 #d9d1ff,
+    0 calc(var(--step) * 2) 0 #c3b6fb,
+    0 calc(var(--step) * 3) 0 #ab9bf3,
+    0 calc(var(--step) * 4) 0 #9480e8,
+    0 calc(var(--step) * 5) 0 #7c66da,
+    0 calc(var(--step) * 6) 0 #654ec8,
+    0 calc(var(--step) * 7) 0 #5039b0,
+    0 calc(var(--step) * 7 + 0.06em) 0.12em var(--title-drop),
+    0 calc(var(--step) * 7 + 0.14em) 0.3em var(--title-drop);
 }
+/* 그라데이션 글자는 text-shadow가 비쳐 보이므로,
+   글자 자체는 옆면(단색 + 층층 그림자)으로 그리고 그라데이션 앞면을 ::after로 덮는다 */
 .banner h1 .glow {
-  --o: 0.06em;
-  background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+  position: relative;
+  display: inline-block;
+  color: #3a7fd6;
+  text-shadow:
+    0 calc(var(--step) * 1) 0 #3a6fcf,
+    0 calc(var(--step) * 2) 0 #4560c6,
+    0 calc(var(--step) * 3) 0 #5050bb,
+    0 calc(var(--step) * 4) 0 #5a41ad,
+    0 calc(var(--step) * 5) 0 #5a339c,
+    0 calc(var(--step) * 6) 0 #532789,
+    0 calc(var(--step) * 7) 0 #481d73,
+    0 calc(var(--step) * 7 + 0.06em) 0.12em var(--title-drop),
+    0 calc(var(--step) * 7 + 0.14em) 0.3em var(--title-drop);
+}
+.banner h1 .glow::after {
+  content: attr(data-text);
+  content: attr(data-text) / ""; /* 화면 낭독기가 두 번 읽지 않도록 */
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #5ab8ff, #b06bff 55%, #ff5cd6);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   text-shadow: none;
-  /* 그라데이션 글자에는 text-stroke 대신 그림자를 4방향으로 겹쳐 외곽선을 만든다 */
-  -webkit-text-stroke: 0;
-  filter:
-    drop-shadow(var(--o) 0 0 var(--title-stroke))
-    drop-shadow(calc(var(--o) * -1) 0 0 var(--title-stroke))
-    drop-shadow(0 var(--o) 0 var(--title-stroke))
-    drop-shadow(0 calc(var(--o) * -1) 0 var(--title-stroke))
-    var(--title-glow);
 }
 .banner p {
   margin: 0;
