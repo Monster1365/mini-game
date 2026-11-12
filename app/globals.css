@@ -1,11 +1,13 @@
 :root {
-  --bg: #0f1020;
-  --panel: #1a1c33;
-  --panel-hover: #23264a;
-  --line: #2e3160;
-  --text: #eef0ff;
-  --muted: #9aa0c8;
-  --accent: #ffcc33;
+  --bg: #07071d;
+  --panel: #14143a;
+  --panel-hover: #1d1d50;
+  --line: #2b2b66;
+  --text: #f0eeff;
+  --muted: #a39fd0;
+  --neon-blue: #4fb4ff;
+  --neon-pink: #e45cff;
+  --accent: #c77dff;
 }
 
 * { box-sizing: border-box; }
@@ -15,6 +17,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  word-break: keep-all;
 }
 
 a { color: inherit; }
@@ -27,8 +30,28 @@ a { color: inherit; }
 }
 
 .hero { text-align: center; margin-bottom: 40px; }
-.hero h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 12px; letter-spacing: -0.02em; }
-.hero h1 span { color: var(--accent); }
+.hero h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  font-size: clamp(2rem, 6vw, 3rem);
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+.logo {
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 22%;
+  box-shadow: 0 0 24px -4px rgba(79, 180, 255, 0.55), 0 0 40px -8px rgba(228, 92, 255, 0.5);
+}
+.hero h1 .glow {
+  background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .hero p { color: var(--muted); margin: 0; }
 
 .grid {
@@ -50,12 +73,13 @@ a { color: inherit; }
   border-radius: 16px;
   background: var(--panel);
   text-decoration: none;
-  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 .card:hover, .card:focus-visible {
   transform: translateY(-4px);
   background: var(--panel-hover);
   border-color: var(--accent);
+  box-shadow: 0 8px 28px -10px rgba(199, 125, 255, 0.6);
   outline: none;
 }
 .emoji { font-size: 2.75rem; line-height: 1; margin-bottom: 8px; }
@@ -100,6 +124,8 @@ a { color: inherit; }
   cursor: pointer;
   white-space: nowrap;
 }
+.back { display: inline-flex; align-items: center; gap: 6px; }
+.back-logo { border-radius: 6px; }
 .back:hover, .fs:hover { border-color: var(--accent); color: var(--accent); }
 
 .stage { flex: 1; min-height: 0; background: #000; }

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import type { Game } from "@/lib/games";
@@ -20,7 +21,8 @@ export default function GameFrame({ game }: { game: Game }) {
     <main className="player">
       <nav className="bar">
         <Link href="/" className="back">
-          ← 목록
+          <Image src="/images/logo.png" alt="" width={22} height={22} className="back-logo" />
+          목록
         </Link>
         <h1>
           <span aria-hidden>{game.emoji}</span> {game.title}

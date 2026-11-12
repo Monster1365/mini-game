@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { games } from "@/lib/games";
 
@@ -6,7 +7,10 @@ export default function Home() {
     <main className="home">
       <header className="hero">
         <h1>
-          🕹️ 미니게임 <span>아케이드</span>
+          <Image src="/images/logo.png" alt="" width={72} height={72} className="logo" priority />
+          <span>
+            미니게임 <span className="glow">아케이드</span>
+          </span>
         </h1>
         <p>설치 없이 브라우저에서 바로 플레이하세요. 총 {games.length}개의 게임</p>
       </header>
