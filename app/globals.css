@@ -200,7 +200,11 @@ a { color: inherit; }
   box-shadow: var(--card-shadow);
   outline: none;
 }
-.emoji { font-size: 2.75rem; line-height: 1; margin-bottom: 8px; }
+/* 게임 아이콘: 썸네일 이미지 또는 이모지 — 둘이 섞여도 카드 높이가 같도록 64px 상자 */
+.card-icon { display: flex; align-items: center; height: 64px; margin-bottom: 8px; }
+.card-icon .emoji { font-size: 2.75rem; line-height: 1; }
+.thumb { display: block; border-radius: 14px; object-fit: cover; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+.bar-icon.thumb { display: inline-block; border-radius: 6px; vertical-align: -5px; box-shadow: none; }
 .card-title { font-size: 1.25rem; font-weight: 700; }
 .card-desc { color: var(--muted); font-size: 0.925rem; line-height: 1.5; flex: 1; }
 .play { color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-top: 8px; }

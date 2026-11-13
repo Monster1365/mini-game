@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { games } from "@/lib/games";
+import GameIcon from "./GameIcon";
 import SettingsMenu from "./SettingsMenu";
 
 export default function Home() {
@@ -25,8 +26,8 @@ export default function Home() {
           {games.map((g) => (
             <li key={g.slug}>
               <Link href={`/games/${g.slug}`} className="card">
-                <span className="emoji" aria-hidden>
-                  {g.emoji}
+                <span className="card-icon">
+                  <GameIcon game={g} size={64} />
                 </span>
                 <span className="card-title">{g.title}</span>
                 {g.description && <span className="card-desc">{g.description}</span>}

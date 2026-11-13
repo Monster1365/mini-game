@@ -5,6 +5,8 @@ export type Game = {
   title: string;
   emoji: string;
   description: string;
+  /** games/<폴더>/thumbnail.png 등이 있으면 그 경로 (없으면 emoji 표시) */
+  thumbnail?: string;
 };
 
 export const games: Game[] = data;

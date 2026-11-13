@@ -30,6 +30,22 @@ npm run build    # 프로덕션 빌드
 `games/`의 게임 폴더를 `public/play/<slug>/`로 복사하고 목록(`lib/games.generated.json`)을 만듭니다.
 이 두 결과물은 자동 생성되므로 git에 올리지 않습니다.
 
+## 게임 썸네일 넣기
+
+게임 폴더에 `thumbnail.png`(또는 `.webp` `.jpg` `.svg`)를 넣으면 홈 카드와 게임 화면 상단의 이모지가
+그 이미지로 바뀝니다. 이미지가 없는 게임은 `game.json`의 `emoji`가 그대로 보여요.
+
+```
+games/Omok/
+├── index.html
+├── game.json
+└── thumbnail.png   ← 여기
+```
+
+- 다른 파일명을 쓰려면 `game.json`에 `"thumbnail": "cover.webp"`처럼 지정하세요.
+- 권장 규격: 정사각형 512×512, 투명 배경 PNG 또는 WebP, 300KB 이하 (500KB를 넘으면 빌드 때 경고).
+- 사이트 공용 이미지(로고, 배너, 파비콘)는 `public/images/`에 둡니다.
+
 ## 테마 (라이트/다크)
 
 홈 오른쪽 위 ⚙ 설정에서 시스템/라이트/다크를 고를 수 있고, 게임에도 똑같이 적용됩니다.

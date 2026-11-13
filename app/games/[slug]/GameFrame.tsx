@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import type { Game } from "@/lib/games";
+import GameIcon from "../../GameIcon";
 
 export default function GameFrame({ game }: { game: Game }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -25,7 +26,7 @@ export default function GameFrame({ game }: { game: Game }) {
           목록
         </Link>
         <h1>
-          <span aria-hidden>{game.emoji}</span> {game.title}
+          <GameIcon game={game} size={24} className="bar-icon" /> {game.title}
         </h1>
         <button type="button" onClick={toggleFullscreen} className="fs">
           ⛶ 전체화면
