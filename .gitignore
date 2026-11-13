@@ -9,3 +9,7 @@ next-env.d.ts
 # 빌드 시 scripts/sync-games.mjs가 자동 생성
 /public/play
 /lib/games.generated.json
+
+# AI 에이전트용 로컬 문서 (비공개)
+/AGENTS.md
+/CLAUDE.md
