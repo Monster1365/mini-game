@@ -20,8 +20,8 @@ export default function GameFrame({ game }: { game: Game }) {
   return (
     <main className="player">
       <nav className="bar">
-        <Link href="/" className="back">
-          <Image src="/images/logo.png" alt="" width={22} height={22} className="back-logo" />
+        <Link href="/" className="back" prefetch={false}>
+          <Image src="/images/logo-64.png" alt="" width={22} height={22} className="back-logo" unoptimized />
           목록
         </Link>
         <h1>

@@ -24,7 +24,8 @@ export default function Home() {
         <ul className="grid">
           {games.map((g) => (
             <li key={g.slug}>
-              <Link href={`/games/${g.slug}`} className="card">
+              {/* 프리패치 끔: 홈에서 카드 12개 × 2건의 RSC 요청이 생기는 것을 막는다 */}
+              <Link href={`/games/${g.slug}`} className="card" prefetch={false}>
                 <span className="card-media">
                   {g.thumbnail ? (
                     <Image
@@ -33,7 +34,7 @@ export default function Home() {
                       fill
                       sizes="(max-width: 600px) 100vw, 280px"
                       className="card-img"
-                      unoptimized={g.thumbnail.endsWith(".svg")}
+                      unoptimized /* 이미 512px로 줄인 파일이라 이미지 최적화(변환)를 거치지 않는다 */
                     />
                   ) : (
                     <span className="card-emoji" aria-hidden>
