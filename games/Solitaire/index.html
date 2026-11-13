@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>솔리테어</title>
+<script src="../_shared/theme.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0e1612;
+    --panel: #18221d;
+    --line: #2c3a32;
+    --text: #eaf2ec;
+    --muted: #93a79a;
+    --accent: #f2c14e;
+    --felt: #12603a;
+    --felt-dark: #0a4227;
+    --slot: rgba(255,255,255,.18);
+    --back-a: #1f4fa8;
+    --back-b: #163a7d;
+    --scrim: rgba(5, 10, 8, .55);
+    --dialog-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #eef3ef;
+    --panel: #ffffff;
+    --line: #d4ded7;
+    --text: #17251c;
+    --muted: #5b6d61;
+    --accent: #d39b12;
+    --felt: #2e8a57;
+    --felt-dark: #1d6b40;
+    --slot: rgba(255,255,255,.35);
+    --back-a: #2c64c9;
+    --back-b: #1f4ea3;
+    --scrim: rgba(225, 235, 228, .6);
+    --dialog-shadow: 0 20px 50px rgba(20,50,30,.2);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    word-break: keep-all;
+  }
+  button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; flex-wrap: wrap; justify-content: center; }
+  .seg { display: flex; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .seg button { border: 0; background: transparent; padding: 6px 10px; border-radius: 7px; color: var(--muted); font-weight: 700; font-size: .88rem; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #2a1f05; }
+  .stats { display: flex; gap: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-size: .92rem; }
+  .stats b { color: var(--text); }
+  .bar .btn { padding: 7px 12px; font-size: .88rem; font-weight: 600; }
+  #autoBtn { background: var(--accent); border-color: var(--accent); color: #2a1f05; font-weight: 800; }
+
+  .table {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin: 0 10px 10px;
+    border-radius: 16px;
+    background: radial-gradient(ellipse at 50% 35%, var(--felt), var(--felt-dark));
+    box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+    overflow: hidden;
+    touch-action: none;
+  }
+  .slot {
+    position: absolute;
+    width: var(--cw); height: var(--ch);
+    border-radius: calc(var(--cw) * .08);
+    border: 2px dashed var(--slot);
+    display: grid; place-items: center;
+    color: var(--slot);
+    font-size: calc(var(--cw) * .38);
+    font-weight: 700;
+  }
+  .slot.stock { cursor: pointer; border-style: solid; }
+  .slot.drop { border-color: #ffe08a; background: rgba(255,224,138,.12); }
+
+  .card {
+    position: absolute; left: 0; top: 0;
+    width: var(--cw); height: var(--ch);
+    border-radius: calc(var(--cw) * .08);
+    transition: transform .2s cubic-bezier(.2,.8,.3,1);
+    will-change: transform;
+    cursor: default;
+  }
+  .card.instant { transition: none; }
+  .card .face, .card .back {
+    position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: 0 1px 2px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.12);
+  }
+  .card .face { background: #fdfcf7; display: none; color: #1b1b1f; }
+  .card.red .face { color: #c8102e; }
+  .card.up .face { display: block; }
+  .card.up .back { display: none; }
+  .card.up.grab { cursor: grab; }
+  .card.dragging { cursor: grabbing; }
+  .card.dragging .face { box-shadow: 0 10px 24px rgba(0,0,0,.45); }
+  .card.hint .face { box-shadow: 0 0 0 3px #ffe08a, 0 0 18px rgba(255,224,138,.8); }
+  .card.shake { animation: shake .3s; }
+  @keyframes shake { 25% { margin-left: -4px; } 75% { margin-left: 4px; } }
+  .back {
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.12) 0 4px, transparent 4px 9px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,.12) 0 4px, transparent 4px 9px),
+      linear-gradient(135deg, var(--back-a), var(--back-b));
+    border: calc(var(--cw) * .05) solid #fdfcf7;
+  }
+  .corner {
+    position: absolute; line-height: .95; text-align: center; font-weight: 800;
+    font-size: calc(var(--cw) * .22);
+    font-family: system-ui, "Segoe UI Symbol", sans-serif;
+  }
+  .corner.tl { left: 6%; top: 4%; }
+  .corner.br { right: 6%; bottom: 4%; transform: rotate(180deg); }
+  .corner small { display: block; font-size: .85em; }
+  .pip { position: absolute; left: 50%; top: 55%; transform: translate(-50%, -50%); font-size: calc(var(--cw) * .5); line-height: 1; }
+  .pip.court { font-size: calc(var(--cw) * .42); font-weight: 900; font-family: Georgia, "Times New Roman", serif; }
+  .pip.court small { display: block; text-align: center; font-size: .6em; font-family: system-ui, sans-serif; }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--scrim); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); z-index: 2000; }
+  .overlay[hidden] { display: none; }
+  .dialog { width: min(320px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; text-align: center; box-shadow: var(--dialog-shadow); }
+  .dialog .big { font-size: 3rem; line-height: 1; }
+  .dialog h2 { margin: 10px 0 6px; }
+  .dialog p { margin: 4px 0; color: var(--muted); }
+  .dialog .best { color: #d39b12; font-weight: 700; }
+  .row { display: flex; gap: 8px; margin-top: 16px; }
+  .row button { flex: 1; padding: 11px; font-weight: 700; }
+  .primary { background: var(--accent); border-color: var(--accent); color: #2a1f05; }
+  #toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.55); color: #fff; font-size: .85rem; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 1500; white-space: nowrap; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="seg" role="group" aria-label="넘기는 장 수">
+      <button type="button" data-draw="1">1장씩</button>
+      <button type="button" data-draw="3">3장씩</button>
+    </div>
+    <div class="stats"><span>⏱ <b id="time">0:00</b></span><span>이동 <b id="moves">0</b></span></div>
+    <button type="button" class="btn" id="undoBtn">↶ 되돌리기</button>
+    <button type="button" class="btn" id="hintBtn">💡 힌트</button>
+    <button type="button" class="btn" id="newBtn">↻ 새 게임</button>
+    <button type="button" class="btn" id="autoBtn" hidden>⚡ 자동 완성</button>
+  </div>
+  <div class="table" id="table" aria-label="솔리테어 테이블"><div id="toast"></div></div>
+
+  <div class="overlay" id="win" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+      <div class="big">🎉</div>
+      <h2 id="winTitle">클리어!</h2>
+      <p id="winText"></p>
+      <p id="winBest" class="best" hidden>🏆 새 최고 기록!</p>
+      <div class="row">
+        <button type="button" id="closeWinBtn">닫기</button>
+        <button type="button" class="primary" id="againBtn">새 게임</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+ * 1. 규칙 — 클론다이크 (화면과 무관)
+ *  카드: { id, suit(0♠ 1♥ 2♦ 3♣), rank(1~13), up }
+ *  더미: stock, waste, found[0..3], tab[0..6]  (카드 id 배열, 마지막이 맨 위)
+ * ===================================================================== */
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const isRed = c => c.suit === 1 || c.suit === 2;
+
+const Klondike = (() => {
+  function deal(drawCount) {
+    const cards = [];
+    for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) cards.push({ id: cards.length, suit: s, rank: r, up: false });
+    const order = cards.map(c => c.id);
+    for (let i = order.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
+    const tab = Array.from({ length: 7 }, () => []);
+    let k = 0;
+    for (let i = 0; i < 7; i++) for (let j = i; j < 7; j++) tab[j].push(order[k++]);
+    for (const col of tab) cards[col[col.length - 1]].up = true;
+    return { cards, drawCount, stock: order.slice(k).reverse(), waste: [], found: [[], [], [], []], tab, moves: 0 };
+  }
+
+  const top = arr => arr[arr.length - 1];
+  const pile = (g, loc) => (loc.type === 'tab' ? g.tab[loc.i] : loc.type === 'found' ? g.found[loc.i] : g[loc.type]);
+
+  function canFound(g, id, i) {
+    const c = g.cards[id], f = g.found[i];
+    if (!f.length) return c.rank === 1;
+    const t = g.cards[top(f)];
+    return t.suit === c.suit && c.rank === t.rank + 1;
+  }
+  function canTab(g, id, i) {
+    const c = g.cards[id], col = g.tab[i];
+    if (!col.length) return c.rank === 13;
+    const t = g.cards[top(col)];
+    return t.up && isRed(t) !== isRed(c) && c.rank === t.rank - 1;
+  }
+
+  // 위치 loc(더미, 몇 번째 카드부터)에서 들고 갈 수 있는 카드 묶음
+  function pickable(g, loc) {
+    const p = pile(g, loc);
+    if (loc.type === 'stock') return null;
+    if (loc.type !== 'tab') return loc.index === p.length - 1 ? [p[loc.index]] : null;
+    const run = p.slice(loc.index);
+    if (!g.cards[run[0]].up) return null;
+    for (let k = 1; k < run.length; k++) {
+      const a = g.cards[run[k - 1]], b = g.cards[run[k]];
+      if (isRed(a) === isRed(b) || b.rank !== a.rank - 1) return null;
+    }
+    return run;
+  }
+
+  function canDrop(g, run, to) {
+    if (to.type === 'found') return run.length === 1 && canFound(g, run[0], to.i);
+    if (to.type === 'tab') return canTab(g, run[0], to.i);
+    return false;
+  }
+
+  // 이동 적용 (검사는 호출 쪽에서). 옮긴 뒤 드러난 카드는 자동으로 뒤집는다
+  function move(g, from, to) {
+    const src = pile(g, from), run = src.splice(from.index);
+    pile(g, to).push(...run);
+    if (from.type === 'tab' && src.length && !g.cards[top(src)].up) g.cards[top(src)].up = true;
+    g.moves++;
+  }
+
+  function draw(g) {
+    if (g.stock.length) {
+      const n = Math.min(g.drawCount, g.stock.length);
+      for (let k = 0; k < n; k++) { const id = g.stock.pop(); g.cards[id].up = true; g.waste.push(id); }
+    } else if (g.waste.length) {
+      while (g.waste.length) { const id = g.waste.pop(); g.cards[id].up = false; g.stock.push(id); }
+    } else return false;
+    g.moves++;
+    return true;
+  }
+
+  // 클릭 한 번으로 보낼 곳: 파운데이션 우선, 다음은 테이블 (빈 열은 마지막)
+  function bestTarget(g, from) {
+    const run = pickable(g, from);
+    if (!run) return null;
+    if (run.length === 1) for (let i = 0; i < 4; i++) if (canFound(g, run[0], i)) return { type: 'found', i };
+    const order = [0, 1, 2, 3, 4, 5, 6].sort((a, b) => (g.tab[a].length ? 0 : 1) - (g.tab[b].length ? 0 : 1));
+    for (const i of order) {
+      if (from.type === 'tab' && from.i === i) continue;
+      // K를 빈 열로 옮겨도 의미 없는 경우(이미 열의 맨 아래) 제외
+      if (!g.tab[i].length && from.type === 'tab' && from.index === 0) continue;
+      if (canTab(g, run[0], i)) return { type: 'tab', i };
+    }
+    return null;
+  }
+
+  // 힌트: 의미 있는 이동 하나
+  function hint(g) {
+    const sources = [];
+    if (g.waste.length) sources.push({ type: 'waste', index: g.waste.length - 1 });
+    for (let i = 0; i < 7; i++) {
+      const col = g.tab[i];
+      const first = col.findIndex(id => g.cards[id].up);
+      if (first >= 0) sources.push({ type: 'tab', i, index: first }, { type: 'tab', i, index: col.length - 1 });
+    }
+    for (const s of sources) {
+      const run = pickable(g, s);
+      if (!run) continue;
+      if (run.length === 1) for (let i = 0; i < 4; i++) if (canFound(g, run[0], i)) return { from: s, to: { type: 'found', i } };
+    }
+    for (const s of sources) {
+      const run = pickable(g, s);
+      if (!run) continue;
+      for (let i = 0; i < 7; i++) {
+        if (s.type === 'tab' && s.i === i) continue;
+        if (!canTab(g, run[0], i)) continue;
+        // 의미 있는 이동만: 뒤집힌 카드를 드러내거나, 웨이스트에서 꺼내거나
+        const revealsOrFrees = s.type === 'waste' || (s.index > 0 && !g.cards[g.tab[s.i][s.index - 1]].up) || (s.index === 0 && g.tab[i].length);
+        if (g.tab[i].length === 0 && s.type === 'tab' && s.index === 0) continue;
+        if (revealsOrFrees) return { from: s, to: { type: 'tab', i } };
+      }
+    }
+    if (g.stock.length || g.waste.length) return { draw: true };
+    return null;
+  }
+
+  const won = g => g.found.every(f => f.length === 13);
+  const canAutoFinish = g => !g.stock.length && !g.waste.length && g.tab.every(col => col.every(id => g.cards[id].up));
+
+  // 자동 완성 한 걸음: 파운데이션으로 갈 수 있는 가장 낮은 카드
+  function autoStep(g) {
+    let best = null;
+    for (let i = 0; i < 7; i++) {
+      const col = g.tab[i];
+      if (!col.length) continue;
+      const id = top(col);
+      for (let f = 0; f < 4; f++) if (canFound(g, id, f) && (!best || g.cards[id].rank < g.cards[best.id].rank)) best = { id, from: { type: 'tab', i, index: col.length - 1 }, to: { type: 'found', i: f } };
+    }
+    return best;
+  }
+
+  return { deal, pile, pickable, canDrop, move, draw, bestTarget, hint, won, canAutoFinish, autoStep, top };
+})();
+
+/* =====================================================================
+ * 2. 화면 · 입력
+ * ===================================================================== */
+(() => {
+  const $ = id => document.getElementById(id);
+  const table = $('table');
+  const KEY = 'solitaire-settings', BEST = 'solitaire-best';
+  let drawCount = 1;
+  try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); if (s.draw === 3) drawCount = 3; } catch (e) {}
+
+  let g = null, history = [], els = [], slots = {}, geo = null;
+  let timer = 0, elapsed = 0, started = false, busy = false;
+
+  // ---------- 카드 DOM ----------
+  function cardEl(c) {
+    const el = document.createElement('div');
+    el.className = 'card' + (isRed(c) ? ' red' : '');
+    el.dataset.id = c.id;
+    const r = RANKS[c.rank], s = SUITS[c.suit];
+    const center = c.rank > 10 ? `<span class="pip court">${r}<small>${s}</small></span>` : `<span class="pip">${s}</span>`;
+    el.innerHTML = `<div class="face"><span class="corner tl">${r}<small>${s}</small></span>${center}<span class="corner br">${r}<small>${s}</small></span></div><div class="back"></div>`;
+    el.setAttribute('aria-label', `${s} ${r}`);
+    return el;
+  }
+  function slotEl(cls, text = '') {
+    const el = document.createElement('div');
+    el.className = 'slot ' + cls;
+    el.textContent = text;
+    table.appendChild(el);
+    return el;
+  }
+
+  // ---------- 새 게임 ----------
+  function newGame() {
+    stopWin();
+    g = Klondike.deal(drawCount);
+    history = [];
+    started = false; elapsed = 0; clearInterval(timer);
+    $('time').textContent = '0:00';
+    $('win').hidden = true;
+    table.querySelectorAll('.card, .slot').forEach(e => e.remove());
+    slots = {
+      stock: slotEl('stock', '↻'), waste: slotEl('waste'),
+      found: [0, 1, 2, 3].map(i => slotEl('found', 'A')),
+      tab: [0, 1, 2, 3, 4, 5, 6].map(() => slotEl('tab', 'K')),
+    };
+    slots.stock.addEventListener('click', onStock);
+    els = g.cards.map(c => { const el = cardEl(c); table.appendChild(el); return el; });
+    document.querySelectorAll('[data-draw]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.draw) === drawCount)));
+    measure();
+    // 처음엔 모든 카드를 덱 자리에서 출발시켜 나눠주는 느낌으로
+    els.forEach(el => { el.classList.add('instant'); el.style.transform = `translate(${geo.stockX}px, ${geo.topY}px)`; });
+    requestAnimationFrame(() => requestAnimationFrame(() => { els.forEach(el => el.classList.remove('instant')); layout(); }));
+    updateBar();
+  }
+
+  // ---------- 배치 계산 ----------
+  function measure() {
+    const W = table.clientWidth, H = table.clientHeight;
+    const pad = Math.max(8, W * 0.02);
+    let cw = Math.min(110, (W - pad * 2) / (7 + 6 * 0.14));
+    let ch = cw * 1.4;
+    // 세로가 너무 좁으면 카드 크기를 줄인다 (맨 위 줄 + 열에 최소 카드 6장 정도 보이도록)
+    const needH = pad * 2 + ch * 2.2 + ch * 0.25 * 6;
+    if (needH > H) { const k = H / needH; cw *= k; ch *= k; }
+    cw = Math.max(36, cw); ch = cw * 1.4;
+    const gap = cw * 0.14;
+    const left = (W - (cw * 7 + gap * 6)) / 2;
+    const colX = i => left + i * (cw + gap);
+    geo = { W, H, cw, ch, gap, pad, colX, topY: pad, tabY: pad + ch + gap * 1.6, stockX: colX(0), wasteX: colX(1) };
+    table.style.setProperty('--cw', cw + 'px');
+    table.style.setProperty('--ch', ch + 'px');
+  }
+
+  function place(el, x, y) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+
+  // 각 카드의 위치·면·겹침 순서
+  function layout(skip = new Set()) {
+    if (!geo) return;
+    const { cw, ch, gap, topY, tabY, colX, H, pad } = geo;
+    place(slots.stock, colX(0), topY);
+    place(slots.waste, colX(1), topY);
+    slots.stock.textContent = g.stock.length ? '' : (g.waste.length ? '↻' : '');
+    slots.found.forEach((s, i) => place(s, colX(3 + i), topY));
+    slots.tab.forEach((s, i) => place(s, colX(i), tabY));
+    let z = 1;
+    const put = (id, x, y, zz) => {
+      const el = els[id], c = g.cards[id];
+      el.classList.toggle('up', c.up);
+      if (skip.has(id)) return;
+      el.style.transform = `translate(${x}px, ${y}px)`;
+      el.style.zIndex = zz;
+      el.dataset.x = x; el.dataset.y = y;
+    };
+    g.stock.forEach((id, k) => put(id, colX(0) - Math.min(k, 6) * 0.4, topY - Math.min(k, 6) * 0.4, z++));
+    // 웨이스트: 3장씩 모드면 맨 위 3장을 부채꼴로
+    const fanN = g.drawCount === 3 ? 3 : 1;
+    g.waste.forEach((id, k) => {
+      const fromTop = g.waste.length - 1 - k;
+      const off = fromTop < fanN ? (fanN - 1 - fromTop) * cw * 0.28 : 0;
+      put(id, colX(1) + Math.max(0, Math.min(off, (g.waste.length - 1) * cw * 0.28)), topY, z++);
+    });
+    g.found.forEach((f, i) => f.forEach(id => put(id, colX(3 + i), topY, z++)));
+    // 테이블: 열 높이가 넘치면 간격을 줄인다
+    const avail = H - tabY - pad;
+    g.tab.forEach((col, i) => {
+      let down = ch * 0.12, upGap = ch * 0.27;
+      const nDown = col.filter(id => !g.cards[id].up).length, nUp = col.length - nDown;
+      const total = nDown * down + Math.max(0, nUp - 1) * upGap + ch;
+      if (total > avail && col.length > 1) {
+        const k = Math.max(0.2, (avail - ch) / (nDown * down + Math.max(0, nUp - 1) * upGap));
+        down *= k; upGap *= k;
+      }
+      let y = tabY;
+      col.forEach(id => { put(id, colX(i), y, 100 + z++); y += g.cards[id].up ? upGap : down; });
+    });
+    // 들 수 있는 카드에 손 모양 커서
+    els.forEach((el, id) => el.classList.toggle('grab', g.cards[id].up && !!locate(id) && !!Klondike.pickable(g, locate(id))));
+  }
+
+  // 카드 id가 어디에 있는지
+  function locate(id) {
+    let k;
+    if ((k = g.waste.indexOf(id)) >= 0) return { type: 'waste', index: k };
+    if ((k = g.stock.indexOf(id)) >= 0) return { type: 'stock', index: k };
+    for (let i = 0; i < 4; i++) if ((k = g.found[i].indexOf(id)) >= 0) return { type: 'found', i, index: k };
+    for (let i = 0; i < 7; i++) if ((k = g.tab[i].indexOf(id)) >= 0) return { type: 'tab', i, index: k };
+    return null;
+  }
+
+  // ---------- 상태 기록 / 되돌리기 ----------
+  function snapshot() {
+    history.push(JSON.stringify({ stock: g.stock, waste: g.waste, found: g.found, tab: g.tab, up: g.cards.map(c => c.up), moves: g.moves }));
+    if (history.length > 500) history.shift();
+  }
+  function undo() {
+    if (busy || !history.length) return;
+    const s = JSON.parse(history.pop());
+    Object.assign(g, { stock: s.stock, waste: s.waste, found: s.found, tab: s.tab, moves: s.moves + 1 });
+    s.up.forEach((u, i) => (g.cards[i].up = u));
+    clearHint();
+    layout(); updateBar();
+  }
+
+  function startClock() {
+    if (started) return;
+    started = true;
+    const t0 = performance.now() - elapsed * 1000;
+    timer = setInterval(() => {
+      elapsed = Math.floor((performance.now() - t0) / 1000);
+      $('time').textContent = `${(elapsed / 60) | 0}:${String(elapsed % 60).padStart(2, '0')}`;
+    }, 500);
+  }
+
+  // ---------- 행동 ----------
+  function doMove(from, to) {
+    snapshot();
+    startClock();
+    Klondike.move(g, from, to);
+    clearHint();
+    layout();
+    afterMove();
+  }
+  function onStock() {
+    if (busy) return;
+    if (!g.stock.length && !g.waste.length) return;
+    snapshot();
+    startClock();
+    Klondike.draw(g);
+    clearHint();
+    layout();
+    afterMove();
+  }
+  function afterMove() {
+    updateBar();
+    if (Klondike.won(g)) win();
+  }
+  function updateBar() {
+    $('moves').textContent = g.moves;
+    $('undoBtn').disabled = !history.length || busy;
+    $('autoBtn').hidden = !(Klondike.canAutoFinish(g) && !Klondike.won(g));
+  }
+
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text; t.classList.add('show');
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+  function clearHint() { els.forEach(el => el.classList.remove('hint')); slots.stock && slots.stock.classList.remove('drop'); }
+  function showHint() {
+    if (busy) return;
+    clearHint();
+    const h = Klondike.hint(g);
+    if (!h) { toast('더 이상 움직일 수 있는 카드가 없어요'); return; }
+    if (h.draw) { (g.stock.length ? els[Klondike.top(g.stock)] : slots.stock).classList.add(g.stock.length ? 'hint' : 'drop'); toast(g.stock.length ? '덱에서 카드를 넘겨 보세요' : '덱을 다시 섞어 넘겨 보세요'); }
+    else Klondike.pile(g, h.from).slice(h.from.index).forEach(id => els[id].classList.add('hint'));
+    setTimeout(clearHint, 1600);
+  }
+
+  // ---------- 자동 완성 ----------
+  function autoFinish() {
+    if (busy || !Klondike.canAutoFinish(g)) return;
+    busy = true; $('autoBtn').hidden = true;
+    snapshot();
+    const step = () => {
+      const s = Klondike.autoStep(g);
+      if (!s) { busy = false; afterMove(); return; }
+      Klondike.move(g, s.from, s.to);
+      layout(); updateBar();
+      setTimeout(step, 70);
+    };
+    step();
+  }
+
+  // ---------- 드래그 & 클릭 ----------
+  let drag = null;
+  table.addEventListener('pointerdown', e => {
+    if (busy || e.button > 0) return;
+    const el = e.target.closest('.card');
+    if (!el) return;
+    const id = Number(el.dataset.id), loc = locate(id);
+    if (!loc) return;
+    if (loc.type === 'stock') { onStock(); return; }
+    const run = Klondike.pickable(g, loc);
+    if (!run) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); return; }
+    drag = { id: e.pointerId, loc, run, x0: e.clientX, y0: e.clientY, moved: false };
+    try { table.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  table.addEventListener('pointermove', e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      drag.run.forEach((id, k) => { const el = els[id]; el.classList.add('instant', 'dragging'); el.style.zIndex = 1000 + k; });
+    }
+    drag.run.forEach(id => {
+      const el = els[id];
+      el.style.transform = `translate(${Number(el.dataset.x) + dx}px, ${Number(el.dataset.y) + dy}px)`;
+    });
+    highlightDrop(dropTarget(drag, dx, dy));
+  });
+  table.addEventListener('pointerup', e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    const d = drag; drag = null;
+    d.run.forEach(id => els[id].classList.remove('instant', 'dragging'));
+    highlightDrop(null);
+    if (!d.moved) { clickMove(d.loc, d.run); return; }
+    const to = dropTarget(d, e.clientX - d.x0, e.clientY - d.y0);
+    if (to) doMove(d.loc, to);
+    else layout();
+  });
+  table.addEventListener('pointercancel', () => {
+    if (!drag) return;
+    drag.run.forEach(id => els[id].classList.remove('instant', 'dragging'));
+    drag = null; highlightDrop(null); layout();
+  });
+
+  // 끌고 있는 카드와 가장 많이 겹치는, 놓을 수 있는 자리
+  function dropTarget(d, dx, dy) {
+    if (!d) return null;
+    const lead = els[d.run[0]];
+    const x = Number(lead.dataset.x) + dx, y = Number(lead.dataset.y) + dy;
+    const { cw, ch, colX, topY } = geo;
+    let best = null, bestArea = 0;
+    const consider = (to, rx, ry, rh) => {
+      if (d.loc.type === to.type && d.loc.i === to.i) return;
+      if (!Klondike.canDrop(g, d.run, to)) return;
+      const ox = Math.max(0, Math.min(x + cw, rx + cw) - Math.max(x, rx));
+      const oy = Math.max(0, Math.min(y + ch, ry + rh) - Math.max(y, ry));
+      if (ox * oy > bestArea) { bestArea = ox * oy; best = to; }
+    };
+    for (let i = 0; i < 4; i++) consider({ type: 'found', i }, colX(3 + i), topY, ch);
+    for (let i = 0; i < 7; i++) {
+      const col = g.tab[i];
+      const ry = col.length ? Number(els[Klondike.top(col)].dataset.y) : geo.tabY;
+      consider({ type: 'tab', i }, colX(i), col.length ? geo.tabY : ry, (ry - geo.tabY) + ch);
+    }
+    return bestArea > cw * ch * 0.12 ? best : null;
+  }
+  let lastHi = null;
+  function highlightDrop(to) {
+    if (lastHi) lastHi.classList.remove('drop');
+    lastHi = null;
+    if (!to) return;
+    const pileArr = Klondike.pile(g, to);
+    const el = to.type === 'found' ? slots.found[to.i] : slots.tab[to.i];
+    if (!pileArr.length || to.type === 'found') { el.classList.add('drop'); lastHi = el; }
+    else { const t = els[Klondike.top(pileArr)]; t.classList.add('hint'); lastHi = { classList: { remove: () => t.classList.remove('hint') } }; }
+  }
+
+  function clickMove(loc, run) {
+    const to = Klondike.bestTarget(g, loc);
+    if (to) doMove(loc, to);
+    else { const el = els[run[0]]; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+  }
+
+  // ---------- 승리 ----------
+  let winRaf = 0;
+  function win() {
+    clearInterval(timer);
+    busy = true;
+    let bests = {};
+    try { bests = JSON.parse(localStorage.getItem(BEST) || '{}') || {}; } catch (e) {}
+    const key = 'draw' + g.drawCount, prev = bests[key];
+    const isBest = prev == null || elapsed < prev;
+    if (isBest) { bests[key] = elapsed; try { localStorage.setItem(BEST, JSON.stringify(bests)); } catch (e) {} }
+    const fmt = s => `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`;
+    $('winText').textContent = `${g.drawCount}장씩 · ${fmt(elapsed)} · ${g.moves}번 이동` + (isBest ? '' : ` · 최고 ${fmt(prev)}`);
+    $('winBest').hidden = !isBest;
+    // 카드가 튕기며 쏟아지는 연출
+    const flying = [];
+    for (let r = 13; r >= 1; r--) for (let f = 0; f < 4; f++) { const id = g.found[f][r - 1]; if (id !== undefined) flying.push(id); }
+    let k = 0, last = performance.now();
+    const live = [];
+    const launch = () => {
+      if (k >= flying.length) return;
+      const id = flying[k++], el = els[id];
+      el.classList.add('instant'); el.style.zIndex = 1500 + k;
+      live.push({ el, x: Number(el.dataset.x), y: Number(el.dataset.y), vx: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 220), vy: -(100 + Math.random() * 250) });
+    };
+    const tick = now => {
+      const dt = Math.max(0, Math.min(0.033, (now - last) / 1000)); last = now;
+      if (Math.random() < 0.35) launch();
+      for (const p of live) {
+        p.vy += 1500 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+        if (p.y > geo.H - geo.ch) { p.y = geo.H - geo.ch; p.vy *= -0.72; }
+        p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+      }
+      if (k < flying.length || live.some(p => p.x > -geo.cw && p.x < geo.W)) winRaf = requestAnimationFrame(tick);
+      else winRaf = 0;
+    };
+    winRaf = requestAnimationFrame(tick);
+    setTimeout(() => { if (Klondike.won(g)) $('win').hidden = false; }, 2600);
+  }
+  function stopWin() { cancelAnimationFrame(winRaf); winRaf = 0; busy = false; }
+
+  // ---------- 버튼 · 키보드 ----------
+  $('newBtn').onclick = newGame;
+  $('againBtn').onclick = newGame;
+  $('closeWinBtn').onclick = () => { $('win').hidden = true; };
+  $('undoBtn').onclick = undo;
+  $('hintBtn').onclick = showHint;
+  $('autoBtn').onclick = autoFinish;
+  document.querySelectorAll('[data-draw]').forEach(b => b.addEventListener('click', () => {
+    const n = Number(b.dataset.draw);
+    if (n === drawCount) return;
+    drawCount = n;
+    try { localStorage.setItem(KEY, JSON.stringify({ draw: n })); } catch (e) {}
+    newGame();
+    toast(`${n}장씩 넘기기로 새 게임`);
+  }));
+  window.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+    else if (e.key.toLowerCase() === 'h' || e.key === 'ㅗ') showHint();
+    else if (e.code === 'Space') { e.preventDefault(); onStock(); }
+  });
+  new ResizeObserver(() => { if (!g) return; measure(); if (!winRaf) layout(); }).observe(table);
+
+  newGame();
+})();
+</script>
+</body>
+</html>
