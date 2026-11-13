@@ -43,7 +43,9 @@ games/Omok/
 ```
 
 - 다른 파일명을 쓰려면 `game.json`에 `"thumbnail": "cover.webp"`처럼 지정하세요.
-- 권장 규격: **정사각형** (예: 512×512), PNG 또는 WebP, 300KB 이하 (500KB를 넘으면 빌드 때 경고).
+- 권장 규격: **정사각형 512×512**, 300KB 이하 (500KB를 넘으면 빌드 때 경고).
+  투명 배경이 없으면 **JPEG**(품질 85~90)가 PNG보다 4~5배 작아요. 투명 배경이 필요할 때만 PNG/WebP를 쓰세요.
+  macOS에서 줄이기: `sips -z 512 512 원본.png --out tmp.png && sips -s format jpeg -s formatOptions 88 tmp.png --out thumbnail.jpg`
   홈 카드(2:3)의 위쪽 2/3를 꽉 채워 보여주므로 정사각형이 아니면 가장자리가 잘려요.
 - 사이트 공용 이미지(로고, 배너, 파비콘)는 `public/images/`에 둡니다.
 
