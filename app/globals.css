@@ -181,11 +181,11 @@ a { color: inherit; }
   gap: 18px;
 }
 
-/* 카드: 세로로 살짝 긴 4:5 — 위 2/3 = 썸네일(또는 이모지), 아래 1/3 = 제목·플레이·설명 */
+/* 카드: 세로형 2:3 — 위 2/3 = 정사각형 썸네일(또는 이모지), 아래 1/3 = 제목·플레이·설명 */
 .card {
   display: flex;
   flex-direction: column;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 2 / 3;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel);
@@ -202,9 +202,9 @@ a { color: inherit; }
 }
 .card-media {
   position: relative;
-  /* 카드(4:5)의 정확히 2/3 높이 = 가로:세로 6:5 */
+  /* 정사각형 = 카드(2:3) 높이의 정확히 2/3 */
   flex: none;
-  aspect-ratio: 6 / 5;
+  aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
   background: radial-gradient(circle at 50% 42%, var(--panel-hover), var(--bg) 120%);
