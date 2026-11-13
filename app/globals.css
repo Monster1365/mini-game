@@ -178,19 +178,19 @@ a { color: inherit; }
   margin: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
+/* 카드: 위 = 썸네일(또는 이모지), 아래 = 제목·플레이·설명 */
 .card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   height: 100%;
-  padding: 24px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel);
   text-decoration: none;
+  overflow: hidden;
   transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 .card:hover, .card:focus-visible {
@@ -200,14 +200,28 @@ a { color: inherit; }
   box-shadow: var(--card-shadow);
   outline: none;
 }
-/* 게임 아이콘: 썸네일 이미지 또는 이모지 — 둘이 섞여도 카드 높이가 같도록 64px 상자 */
-.card-icon { display: flex; align-items: center; height: 64px; margin-bottom: 8px; }
-.card-icon .emoji { font-size: 2.75rem; line-height: 1; }
-.thumb { display: block; border-radius: 14px; object-fit: cover; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
-.bar-icon.thumb { display: inline-block; border-radius: 6px; vertical-align: -5px; box-shadow: none; }
-.card-title { font-size: 1.25rem; font-weight: 700; }
-.card-desc { color: var(--muted); font-size: 0.925rem; line-height: 1.5; flex: 1; }
-.play { color: var(--accent); font-weight: 600; font-size: 0.9rem; margin-top: 8px; }
+.card-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  background: radial-gradient(circle at 50% 42%, var(--panel-hover), var(--bg) 120%);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.card-img { object-fit: cover; transition: transform 0.25s; }
+.card:hover .card-img, .card:focus-visible .card-img { transform: scale(1.05); }
+.card-emoji { font-size: 4.2rem; line-height: 1; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.25)); transition: transform 0.25s; }
+.card:hover .card-emoji, .card:focus-visible .card-emoji { transform: scale(1.1); }
+.card-body { display: flex; flex-direction: column; gap: 6px; padding: 14px 18px 18px; flex: 1; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.card-title { font-size: 1.2rem; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-desc { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.play { flex: none; color: var(--accent); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+
+/* 게임 화면 상단의 작은 아이콘 */
+.thumb { display: block; object-fit: cover; }
+.bar-icon.thumb { display: inline-block; border-radius: 6px; vertical-align: -5px; }
 
 /* ---------- 설정 메뉴 ---------- */
 .settings {

@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { games } from "@/lib/games";
-import GameIcon from "./GameIcon";
 import SettingsMenu from "./SettingsMenu";
 
 export default function Home() {
@@ -26,12 +25,29 @@ export default function Home() {
           {games.map((g) => (
             <li key={g.slug}>
               <Link href={`/games/${g.slug}`} className="card">
-                <span className="card-icon">
-                  <GameIcon game={g} size={64} />
+                <span className="card-media">
+                  {g.thumbnail ? (
+                    <Image
+                      src={g.thumbnail}
+                      alt=""
+                      fill
+                      sizes="(max-width: 600px) 100vw, 280px"
+                      className="card-img"
+                      unoptimized={g.thumbnail.endsWith(".svg")}
+                    />
+                  ) : (
+                    <span className="card-emoji" aria-hidden>
+                      {g.emoji}
+                    </span>
+                  )}
                 </span>
-                <span className="card-title">{g.title}</span>
-                {g.description && <span className="card-desc">{g.description}</span>}
-                <span className="play">플레이 ▶</span>
+                <span className="card-body">
+                  <span className="card-head">
+                    <span className="card-title">{g.title}</span>
+                    <span className="play">플레이 ▶</span>
+                  </span>
+                  {g.description && <span className="card-desc">{g.description}</span>}
+                </span>
               </Link>
             </li>
           ))}
