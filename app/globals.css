@@ -221,10 +221,6 @@ a { color: inherit; }
 .card-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .play { flex: none; color: var(--accent); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
 
-/* 게임 화면 상단의 작은 아이콘 */
-.thumb { display: block; object-fit: cover; }
-.bar-icon.thumb { display: inline-block; border-radius: 6px; vertical-align: -5px; }
-
 /* ---------- 설정 메뉴 ---------- */
 .settings {
   position: absolute;
