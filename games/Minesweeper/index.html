@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지뢰찾기</title>
+<script src="../_shared/theme.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #12151c;
+    --panel: #1c212b;
+    --line: #2f3746;
+    --text: #e9edf3;
+    --muted: #949eae;
+    --accent: #5aa9ff;
+    --cell: #3a4456;
+    --cell-hi: #4a5670;
+    --cell-lo: #262d3a;
+    --open: #1a1f29;
+    --open-line: #262d3a;
+    --boom: #e5484d;
+    --flag: #ff6b5a;
+    --n1: #5aa9ff; --n2: #4cd38a; --n3: #ff6b6b; --n4: #b48cff;
+    --n5: #ffb347; --n6: #3fd6d0; --n7: #f0f0f0; --n8: #9aa3b2;
+    --scrim: rgba(8, 10, 14, .6);
+    --dialog-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --line: #d6dce5;
+    --text: #1c2230;
+    --muted: #5f6979;
+    --accent: #2f74d0;
+    --cell: #c4ccd8;
+    --cell-hi: #dde3ec;
+    --cell-lo: #9ea9b9;
+    --open: #f7f8fa;
+    --open-line: #dfe4eb;
+    --boom: #e5484d;
+    --flag: #e0402f;
+    --n1: #1f63d6; --n2: #16893f; --n3: #d42d2d; --n4: #5b2fb0;
+    --n5: #a35400; --n6: #0b8a86; --n7: #222; --n8: #6b7280;
+    --scrim: rgba(225, 230, 238, .65);
+    --dialog-shadow: 0 20px 50px rgba(30,40,60,.2);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px 16px;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    word-break: keep-all;
+  }
+  button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .top { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .levels { display: flex; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .levels button { border: 0; background: transparent; padding: 6px 14px; border-radius: 7px; color: var(--muted); font-weight: 700; }
+  .levels button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  .status { display: flex; align-items: center; gap: 10px; }
+  .counter {
+    min-width: 76px; padding: 6px 10px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line);
+    font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.1rem; text-align: center;
+  }
+  .counter.limit { animation: shake .4s; border-color: var(--flag); color: var(--flag); }
+  @keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+  .counter .total { color: var(--muted); font-weight: 600; font-size: .85em; }
+  #face { width: 44px; height: 44px; padding: 0; font-size: 1.5rem; line-height: 1; }
+  #flagMode { height: 44px; padding: 0 12px; font-weight: 700; color: var(--muted); }
+  #flagMode[aria-pressed="true"] { border-color: var(--flag); color: var(--flag); }
+
+  .stage { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; }
+  .board {
+    --c: 32px;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), var(--c));
+    grid-auto-rows: var(--c);
+    gap: 2px;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    touch-action: manipulation;
+  }
+  .cell {
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: calc(var(--c) * .56);
+    line-height: 1;
+    cursor: pointer;
+    background: var(--cell);
+    box-shadow: inset 2px 2px 0 var(--cell-hi), inset -2px -2px 0 var(--cell-lo);
+  }
+  .cell:hover:not(.open) { filter: brightness(1.12); }
+  .cell.open { background: var(--open); box-shadow: inset 0 0 0 1px var(--open-line); cursor: default; }
+  .cell.press { background: var(--open); box-shadow: inset 0 0 0 1px var(--open-line); }
+  .cell.boom { background: var(--boom); box-shadow: none; }
+  .cell.wrong { position: relative; }
+  .cell.wrong::after { content: "✕"; position: absolute; color: var(--boom); font-size: calc(var(--c) * .8); }
+  .cell[data-n="1"] { color: var(--n1); } .cell[data-n="2"] { color: var(--n2); }
+  .cell[data-n="3"] { color: var(--n3); } .cell[data-n="4"] { color: var(--n4); }
+  .cell[data-n="5"] { color: var(--n5); } .cell[data-n="6"] { color: var(--n6); }
+  .cell[data-n="7"] { color: var(--n7); } .cell[data-n="8"] { color: var(--n8); }
+  .cell.flag::before { content: "🚩"; font-size: calc(var(--c) * .55); }
+  .cell.mine::before { content: "💣"; font-size: calc(var(--c) * .6); }
+  .board.over .cell { cursor: default; }
+  .board.over .cell:hover { filter: none; }
+
+  .help { margin: 0; color: var(--muted); font-size: .8rem; text-align: center; }
+
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--scrim); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  .overlay[hidden] { display: none; }
+  .dialog { width: min(320px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; text-align: center; box-shadow: var(--dialog-shadow); }
+  .dialog .big { font-size: 3rem; line-height: 1; }
+  .dialog h2 { margin: 10px 0 6px; }
+  .dialog p { margin: 4px 0; color: var(--muted); }
+  .dialog .best { color: #e0a800; font-weight: 700; }
+  .row { display: flex; gap: 8px; margin-top: 16px; }
+  .row button { flex: 1; padding: 11px; font-weight: 700; }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="levels" role="group" aria-label="난이도">
+      <button type="button" data-level="easy">하</button>
+      <button type="button" data-level="medium">중</button>
+      <button type="button" data-level="hard">상</button>
+    </div>
+    <div class="status">
+      <div class="counter" title="남은 지뢰 / 총 지뢰">💣 <span id="mines">0</span><span class="total"> / <span id="total">0</span></span></div>
+      <button type="button" id="face" title="새 게임" aria-label="새 게임">🙂</button>
+      <div class="counter" title="시간">⏱ <span id="time">0</span></div>
+      <button type="button" id="flagMode" aria-pressed="false" title="켜면 탭/클릭으로 깃발을 꽂아요">🚩 모드</button>
+    </div>
+  </div>
+  <div class="stage" id="stage"><div class="board" id="board" role="grid" aria-label="지뢰찾기 판"></div></div>
+  <p class="help" id="help">왼쪽 클릭: 열기 · 오른쪽 클릭: 깃발 · 열린 숫자 클릭: 주변 한 번에 열기</p>
+
+  <div class="overlay" id="result" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="big" id="resultIcon"></div>
+      <h2 id="resultTitle"></h2>
+      <p id="resultText"></p>
+      <p id="resultBest" class="best" hidden>🏆 새 최고 기록!</p>
+      <div class="row">
+        <button type="button" id="closeBtn">판 보기</button>
+        <button type="button" class="primary" id="againBtn">다시 하기</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+ * 1. 게임 로직 — 판 생성, 열기, 깃발, 승패 (화면과 무관)
+ * ===================================================================== */
+const LEVELS = {
+  easy:   { name: '하', cols: 9,  rows: 9,  mines: 10 },
+  medium: { name: '중', cols: 16, rows: 16, mines: 40 },
+  hard:   { name: '상', cols: 30, rows: 16, mines: 99 },
+};
+
+const Mines = (() => {
+  function create(cols, rows, mines) {
+    const cells = Array.from({ length: cols * rows }, () => ({ mine: false, open: false, flag: false, n: 0 }));
+    return { cols, rows, mines, cells, placed: false, status: 'ready', opened: 0, flags: 0, exploded: -1 };
+  }
+  const idx = (g, c, r) => r * g.cols + c;
+  function neighbors(g, i) {
+    const c = i % g.cols, r = (i / g.cols) | 0, out = [];
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      const nc = c + dc, nr = r + dr;
+      if (nc >= 0 && nc < g.cols && nr >= 0 && nr < g.rows) out.push(idx(g, nc, nr));
+    }
+    return out;
+  }
+
+  // 첫 클릭 칸과 그 주변 8칸에는 지뢰를 두지 않는다 (판이 작아 불가능하면 첫 칸만 제외)
+  function placeMines(g, safe) {
+    let banned = new Set([safe, ...neighbors(g, safe)]);
+    if (g.cells.length - banned.size < g.mines) banned = new Set([safe]);
+    const pool = [];
+    for (let i = 0; i < g.cells.length; i++) if (!banned.has(i)) pool.push(i);
+    for (let k = 0; k < g.mines; k++) {
+      const j = k + ((Math.random() * (pool.length - k)) | 0);
+      [pool[k], pool[j]] = [pool[j], pool[k]];
+      g.cells[pool[k]].mine = true;
+    }
+    for (let i = 0; i < g.cells.length; i++) g.cells[i].n = neighbors(g, i).filter(j => g.cells[j].mine).length;
+    g.placed = true;
+  }
+
+  // 칸 열기. 0이면 주변으로 퍼져 나간다. 반환: 새로 열린 칸 목록
+  function open(g, i) {
+    if (g.status === 'won' || g.status === 'lost') return [];
+    const cell = g.cells[i];
+    if (cell.open || cell.flag) return [];
+    if (!g.placed) placeMines(g, i);
+    g.status = 'playing';
+    if (cell.mine) {
+      cell.open = true;
+      g.exploded = i;
+      g.status = 'lost';
+      return [i];
+    }
+    const changed = [];
+    const stack = [i];
+    while (stack.length) {
+      const j = stack.pop(), c = g.cells[j];
+      if (c.open || c.flag || c.mine) continue;
+      c.open = true;
+      g.opened++;
+      changed.push(j);
+      if (c.n === 0) for (const k of neighbors(g, j)) if (!g.cells[k].open) stack.push(k);
+    }
+    checkWin(g);
+    return changed;
+  }
+
+  // 열린 숫자 칸: 주변 깃발 수가 숫자와 같으면 나머지 이웃을 모두 연다
+  function chord(g, i) {
+    const cell = g.cells[i];
+    if (!cell.open || !cell.n || g.status !== 'playing') return [];
+    const nb = neighbors(g, i);
+    if (nb.filter(j => g.cells[j].flag).length !== cell.n) return [];
+    const changed = [];
+    for (const j of nb) {
+      changed.push(...open(g, j));
+      if (g.status === 'lost') break;
+    }
+    return changed;
+  }
+
+  // 반환: true(변경됨) / false(변경 불가) / 'limit'(깃발을 지뢰 수보다 많이 꽂으려 함)
+  function toggleFlag(g, i) {
+    const cell = g.cells[i];
+    if (cell.open || g.status === 'won' || g.status === 'lost') return false;
+    if (!cell.flag && g.flags >= g.mines) return 'limit';
+    cell.flag = !cell.flag;
+    g.flags += cell.flag ? 1 : -1;
+    return true;
+  }
+
+  function checkWin(g) {
+    if (g.status === 'playing' && g.opened === g.cells.length - g.mines) {
+      g.status = 'won';
+      for (const c of g.cells) if (c.mine && !c.flag) { c.flag = true; g.flags++; }
+    }
+  }
+
+  return { create, neighbors, open, chord, toggleFlag };
+})();
+
+/* =====================================================================
+ * 2. 화면 · 입력
+ * ===================================================================== */
+(() => {
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board'), stage = $('stage');
+  const BEST_KEY = 'minesweeper-best', LEVEL_KEY = 'minesweeper-level';
+  let level = 'easy';
+  try { const l = localStorage.getItem(LEVEL_KEY); if (LEVELS[l]) level = l; } catch (e) {}
+  let g = null, els = [], timer = 0, startedAt = 0, elapsed = 0, flagMode = false;
+
+  // ---------- 새 게임 ----------
+  function newGame(lv = level) {
+    level = lv;
+    try { localStorage.setItem(LEVEL_KEY, level); } catch (e) {}
+    const L = LEVELS[level];
+    // 세로로 긴 화면에서는 '상' 판을 세로로 돌려서 보여준다
+    const portrait = stage.clientHeight > stage.clientWidth * 1.15;
+    const [cols, rows] = portrait && L.cols > L.rows ? [L.rows, L.cols] : [L.cols, L.rows];
+    g = Mines.create(cols, rows, L.mines);
+    clearInterval(timer); elapsed = 0;
+    $('time').textContent = 0;
+    $('result').hidden = true;
+    document.querySelectorAll('.levels button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === level)));
+    build();
+    fit();
+    render();
+  }
+
+  function build() {
+    boardEl.innerHTML = '';
+    boardEl.style.setProperty('--cols', g.cols);
+    boardEl.classList.remove('over');
+    els = g.cells.map((_, i) => {
+      const el = document.createElement('div');
+      el.className = 'cell';
+      el.dataset.i = i;
+      el.setAttribute('role', 'gridcell');
+      boardEl.appendChild(el);
+      return el;
+    });
+  }
+
+  // 화면에 맞게 칸 크기 결정
+  function fit() {
+    if (!g) return;
+    const pad = 16 + 2, gap = 2;
+    const w = (stage.clientWidth - pad - gap * (g.cols - 1)) / g.cols;
+    const h = (stage.clientHeight - pad - gap * (g.rows - 1)) / g.rows;
+    const c = Math.max(16, Math.min(40, Math.floor(Math.min(w, h))));
+    boardEl.style.setProperty('--c', c + 'px');
+  }
+
+  // ---------- 타이머 ----------
+  function startTimer() {
+    startedAt = performance.now();
+    timer = setInterval(() => {
+      elapsed = Math.floor((performance.now() - startedAt) / 1000);
+      $('time').textContent = Math.min(999, elapsed);
+    }, 250);
+  }
+
+  // ---------- 동작 ----------
+  function act(i, kind) {
+    if (!g || g.status === 'won' || g.status === 'lost') return;
+    const wasReady = g.status === 'ready';
+    if (kind === 'flag') {
+      const r = Mines.toggleFlag(g, i);
+      if (r === 'limit') warnLimit();
+      else if (r) render();
+      return;
+    }
+    const cell = g.cells[i];
+    const changed = cell.open ? Mines.chord(g, i) : Mines.open(g, i);
+    if (wasReady && g.status !== 'ready') startTimer();
+    if (changed.length || g.status !== 'playing') render();
+    if (g.status === 'won' || g.status === 'lost') finish();
+  }
+
+  // 깃발을 다 썼을 때: 지뢰 카운터를 흔들어 알려준다
+  function warnLimit() {
+    const el = document.querySelector('.counter');
+    el.classList.remove('limit'); void el.offsetWidth; el.classList.add('limit');
+    if (navigator.vibrate) navigator.vibrate([15, 40, 15]);
+  }
+
+  function finish() {
+    clearInterval(timer);
+    elapsed = Math.max(elapsed, Math.floor((performance.now() - startedAt) / 1000));
+    $('time').textContent = Math.min(999, elapsed);
+    boardEl.classList.add('over');
+    const won = g.status === 'won';
+    let isBest = false;
+    if (won) {
+      let bests = {};
+      try { bests = JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {}; } catch (e) {}
+      if (bests[level] == null || elapsed < bests[level]) {
+        isBest = true; bests[level] = elapsed;
+        try { localStorage.setItem(BEST_KEY, JSON.stringify(bests)); } catch (e) {}
+      }
+      $('resultText').textContent = `난이도 ${LEVELS[level].name} · ${elapsed}초` + (isBest ? '' : ` · 최고 ${bests[level]}초`);
+    } else {
+      $('resultText').textContent = `연 칸 ${g.opened} / ${g.cells.length - g.mines}`;
+    }
+    $('resultIcon').textContent = won ? '🎉' : '💥';
+    $('resultTitle').textContent = won ? '모든 지뢰를 찾았어요!' : '펑! 지뢰를 밟았어요';
+    $('resultBest').hidden = !isBest;
+    setTimeout(() => { if (g.status === 'won' || g.status === 'lost') $('result').hidden = false; }, won ? 500 : 900);
+  }
+
+  // ---------- 그리기 ----------
+  function render() {
+    const over = g.status === 'lost' || g.status === 'won';
+    for (let i = 0; i < g.cells.length; i++) {
+      const c = g.cells[i], el = els[i];
+      const showMine = g.status === 'lost' && c.mine && !c.flag;
+      el.classList.toggle('open', c.open || showMine);
+      el.classList.toggle('flag', c.flag);
+      el.classList.toggle('mine', showMine || (c.mine && c.open));
+      el.classList.toggle('boom', i === g.exploded);
+      el.classList.toggle('wrong', g.status === 'lost' && c.flag && !c.mine);
+      if (c.open && !c.mine && c.n) { el.textContent = c.n; el.dataset.n = c.n; }
+      else { el.textContent = ''; delete el.dataset.n; }
+      const r = ((i / g.cols) | 0) + 1, col = (i % g.cols) + 1;
+      el.setAttribute('aria-label', `${r}행 ${col}열 ${c.flag ? '깃발' : c.open ? (c.mine ? '지뢰' : c.n || '빈칸') : '닫힘'}`);
+    }
+    $('mines').textContent = g.mines - g.flags;
+    $('total').textContent = g.mines;
+    $('face').textContent = g.status === 'won' ? '😎' : g.status === 'lost' ? '😵' : '🙂';
+    if (over) boardEl.classList.add('over');
+  }
+
+  // ---------- 입력 ----------
+  // 마우스: 왼쪽 = 열기, 오른쪽 = 깃발
+  // 터치: 탭 = 열기 (🚩 모드면 깃발), 길게 누르기 = 깃발
+  const cellOf = e => { const el = e.target.closest('.cell'); return el ? Number(el.dataset.i) : -1; };
+  let press = null;        // 누르고 있는 칸 (열릴 칸 미리보기)
+  let longTimer = 0, longFired = false, lastTouchFlag = -Infinity;
+
+  boardEl.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (performance.now() - lastTouchFlag < 700) return;   // 터치 길게 누르기와 중복 방지
+    const i = cellOf(e);
+    if (i >= 0) act(i, 'flag');
+  });
+
+  boardEl.addEventListener('pointerdown', e => {
+    const i = cellOf(e);
+    if (i < 0 || !g || g.status === 'won' || g.status === 'lost') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    longFired = false;
+    if (e.pointerType !== 'mouse') {
+      clearTimeout(longTimer);
+      longTimer = setTimeout(() => {
+        longFired = true;
+        lastTouchFlag = performance.now();
+        if (navigator.vibrate) navigator.vibrate(20);
+        clearPress();
+        act(i, 'flag');
+      }, 380);
+    }
+    setPress(i);
+    $('face').textContent = '😮';
+  });
+  boardEl.addEventListener('pointermove', e => {
+    if (press === null) return;
+    const i = cellOf(e);
+    if (i !== press.i) { clearTimeout(longTimer); setPress(i); }
+  });
+  boardEl.addEventListener('pointerup', e => {
+    clearTimeout(longTimer);
+    if (press === null) return;
+    const i = press.i;
+    clearPress();
+    if (!g || g.status === 'won' || g.status === 'lost') return;
+    $('face').textContent = '🙂';
+    if (longFired || i < 0 || cellOf(e) !== i) return;
+    act(i, flagMode && !g.cells[i].open ? 'flag' : 'open');
+  });
+  const cancel = () => { clearTimeout(longTimer); clearPress(); if (g && g.status !== 'won' && g.status !== 'lost') $('face').textContent = '🙂'; };
+  boardEl.addEventListener('pointercancel', cancel);
+  boardEl.addEventListener('pointerleave', cancel);
+
+  // 누르는 동안 열릴 칸을 눌린 모양으로 보여준다 (열린 숫자면 주변 칸)
+  function setPress(i) {
+    clearPress();
+    if (i < 0) { press = { i, cells: [] }; return; }
+    const c = g.cells[i];
+    const cells = c.open ? Mines.neighbors(g, i).filter(j => !g.cells[j].open && !g.cells[j].flag) : c.flag ? [] : [i];
+    cells.forEach(j => els[j].classList.add('press'));
+    press = { i, cells };
+  }
+  function clearPress() {
+    if (press) press.cells.forEach(j => els[j] && els[j].classList.remove('press'));
+    press = null;
+  }
+
+  // ---------- 버튼 ----------
+  document.querySelectorAll('.levels button').forEach(b => b.addEventListener('click', () => newGame(b.dataset.level)));
+  $('face').onclick = () => newGame();
+  $('againBtn').onclick = () => newGame();
+  $('closeBtn').onclick = () => { $('result').hidden = true; };
+  $('flagMode').onclick = () => {
+    flagMode = !flagMode;
+    $('flagMode').setAttribute('aria-pressed', String(flagMode));
+  };
+  // 터치 기기에서는 안내 문구를 바꾼다
+  if (window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+    $('help').textContent = '탭: 열기 · 길게 누르기 또는 🚩 모드: 깃발 · 열린 숫자 탭: 주변 한 번에 열기';
+  }
+
+  new ResizeObserver(fit).observe(stage);
+  newGame();
+})();
+</script>
+</body>
+</html>
