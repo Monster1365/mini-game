@@ -11,9 +11,9 @@ export type Game = {
   tagline: string;
   genre: string;
   keywords: string[];
-  /** 게임 페이지 아래 '게임 소개' 문단 */
+  /** 게임 화면 '게임 소개' 팝업의 소개 문단 */
   about: string;
-  /** 게임 페이지 아래 '하는 법' 목록 */
+  /** 게임 화면 '게임 소개' 팝업의 '하는 법' 목록 */
   howTo: string[];
 };
 

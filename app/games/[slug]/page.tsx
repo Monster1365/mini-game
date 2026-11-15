@@ -72,33 +72,36 @@ export default async function GamePage({ params }: PageProps<"/games/[slug]">) {
   return (
     <>
       <JsonLd data={jsonLd} />
-      <GameFrame game={game} />
-      {/* 게임 아래: 소개·하는 법 (검색엔진이 읽는 본문) */}
-      <section className="game-info" aria-labelledby="about-title">
-        <h2 id="about-title">{game.title} 게임 소개</h2>
-        {game.tagline && <p className="game-tagline">{game.tagline}</p>}
-        <p>{game.about || game.description}</p>
-        {game.howTo.length > 0 && (
-          <>
-            <h2>{game.title} 하는 법</h2>
-            <ol>
-              {game.howTo.map((step) => (
-                <li key={step}>{step}</li>
+      {/* 소개·하는 법은 '게임 소개' 팝업 안에 들어가지만 HTML에는 그대로 있어 검색엔진이 읽는다 */}
+      <GameFrame
+        game={game}
+        info={
+          <div className="game-info">
+            {game.tagline && <p className="game-tagline">{game.tagline}</p>}
+            <p>{game.about || game.description}</p>
+            {game.howTo.length > 0 && (
+              <>
+                <h2>{game.title} 하는 법</h2>
+                <ol>
+                  {game.howTo.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </>
+            )}
+            <h2>다른 무료 미니게임</h2>
+            <ul className="other-games">
+              {others.map((g) => (
+                <li key={g.slug}>
+                  <Link href={`/games/${g.slug}`} prefetch={false}>
+                    {g.title}
+                  </Link>
+                </li>
               ))}
-            </ol>
-          </>
-        )}
-        <h2>다른 무료 미니게임</h2>
-        <ul className="other-games">
-          {others.map((g) => (
-            <li key={g.slug}>
-              <Link href={`/games/${g.slug}`} prefetch={false}>
-                {g.title}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+            </ul>
+          </div>
+        }
+      />
     </>
   );
 }
