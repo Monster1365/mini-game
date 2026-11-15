@@ -88,6 +88,8 @@ a { color: inherit; }
   place-items: center;
   height: clamp(240px, 34vw, 420px);
   isolation: isolate;
+  /* 배너 안의 설정 패널이 아래 게임 카드 위로 펼쳐지도록 배너 전체를 위에 둔다 */
+  z-index: 2;
 }
 .banner-img {
   z-index: -2;
@@ -389,6 +391,23 @@ a { color: inherit; }
 }
 .seg button:hover { color: var(--text); }
 .seg button[aria-checked="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.setting-group { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.setting-group .setting-label { margin-bottom: 0; }
+.data-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; padding: 10px 12px; text-align: left;
+  font: inherit; font-size: 0.88rem; font-weight: 700; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+}
+.data-btn small { font-weight: 400; font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+.data-btn:hover:not(:disabled) { border-color: var(--accent); }
+.data-btn:disabled { opacity: 0.6; cursor: default; }
+.data-btn.danger { color: #e5484d; }
+.data-btn.danger:hover:not(:disabled) { border-color: #e5484d; }
+.data-btn.danger.confirm { background: #e5484d; border-color: #e5484d; color: #fff; }
+.data-btn.danger.confirm small { color: rgba(255, 255, 255, 0.85); }
+.data-btn:focus-visible, .data-cancel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.data-cancel { align-self: flex-end; font: inherit; font-size: 0.8rem; color: var(--muted); background: none; border: 0; cursor: pointer; text-decoration: underline; }
 
 /* ---------- 게임 플레이 ---------- */
 .player {

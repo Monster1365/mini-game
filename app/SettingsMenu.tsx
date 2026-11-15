@@ -56,9 +56,12 @@ function applyTheme(theme: Theme) {
   else root.dataset.theme = theme;
 }
 
+type DataStatus = "idle" | "clearing" | "confirmReset" | "resetDone";
+
 export default function SettingsMenu() {
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("system");
+  const [data, setData] = useState<DataStatus>("idle");
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -89,6 +92,34 @@ export default function SettingsMenu() {
     setTheme(t);
     applyTheme(t);
   };
+
+  // 캐시 삭제: 서버가 Clear-Site-Data 헤더로 브라우저 HTTP 캐시를 지우게 한 뒤 새로 불러온다 (기록은 유지)
+  const clearCache = async () => {
+    setData("clearing");
+    try {
+      await fetch("/api/clear-cache", { method: "POST", cache: "no-store" });
+    } catch {}
+    window.location.reload();
+  };
+
+  // 기록·설정 초기화: 이 사이트의 localStorage를 모두 지운다 (게임들도 같은 저장소를 쓴다). 두 번 눌러 확인
+  const resetData = () => {
+    if (data !== "confirmReset") {
+      setData("confirmReset");
+      return;
+    }
+    try {
+      localStorage.clear();
+    } catch {}
+    applyTheme("system");
+    setTheme("system");
+    setData("resetDone");
+  };
+
+  // 패널을 닫으면 확인 상태를 되돌린다
+  useEffect(() => {
+    if (!open && data !== "clearing") setData("idle");
+  }, [open, data]);
 
   return (
     <div className="settings" ref={rootRef}>
@@ -126,6 +157,28 @@ export default function SettingsMenu() {
                 {o.label}
               </button>
             ))}
+          </div>
+
+          <div className="setting-group">
+            <span className="setting-label">데이터</span>
+            <button type="button" className="data-btn" onClick={clearCache} disabled={data === "clearing"}>
+              {data === "clearing" ? "캐시를 지우는 중…" : "캐시 삭제"}
+              <small>게임·이미지를 새로 불러와요. 기록은 그대로예요.</small>
+            </button>
+            <button
+              type="button"
+              className={`data-btn danger${data === "confirmReset" ? " confirm" : ""}`}
+              onClick={resetData}
+              disabled={data === "clearing"}
+            >
+              {data === "confirmReset" ? "정말 지울까요? 한 번 더 누르면 삭제" : data === "resetDone" ? "초기화했어요 ✓" : "기록·설정 초기화"}
+              <small>최고 기록, 진행 중인 게임, 테마와 게임 설정을 모두 지워요.</small>
+            </button>
+            {data === "confirmReset" && (
+              <button type="button" className="data-cancel" onClick={() => setData("idle")}>
+                취소
+              </button>
+            )}
           </div>
         </div>
       )}
