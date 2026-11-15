@@ -7,6 +7,7 @@ export default function Footer() {
     <footer className="site-footer">
       <nav aria-label="사이트 안내">
         <Link href="/about" prefetch={false}>소개</Link>
+        <Link href="/news" prefetch={false}>소식</Link>
         <Link href="/contact" prefetch={false}>문의</Link>
         <Link href="/privacy" prefetch={false}>개인정보 처리방침</Link>
       </nav>

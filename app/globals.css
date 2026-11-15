@@ -311,6 +311,22 @@ a { color: inherit; }
 /* 봇 함정 칸: 화면 밖으로 (display:none은 일부 봇이 건너뛰어서 위치로 숨김) */
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
+/* ---------- 소식 (틀 고정, 내용은 content/news.json) ---------- */
+.news { margin: 0 0 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); overflow: hidden; }
+.news-head { padding: 22px 24px 18px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, rgba(79, 180, 255, 0.08), rgba(228, 92, 255, 0.08)); }
+.news-date { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 0.88rem; }
+.news-badge { padding: 2px 10px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 0.78rem; }
+.doc .news-head h2 { margin: 0 0 8px; font-size: 1.35rem; }
+.news-summary { margin: 0 !important; }
+.news-block { padding: 18px 24px; border-bottom: 1px solid var(--line); margin: 0 !important; }
+.news-block:last-child { border-bottom: 0; }
+.doc .news-block h3 { margin: 0 0 8px; font-size: 1rem; }
+.news-block ul { margin: 0; }
+.news-games { list-style: none; padding: 0 !important; display: grid; gap: 8px; }
+.news-games li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin: 0; }
+.news-games a { flex: none; }
+.news-empty { margin: 0 !important; font-size: 0.9rem; opacity: 0.8; }
+
 /* ---------- 설정 메뉴 ---------- */
 .settings {
   position: absolute;
