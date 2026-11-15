@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { games } from "@/lib/games";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import Footer from "./Footer";
 import JsonLd from "./JsonLd";
 import SettingsMenu from "./SettingsMenu";
 
@@ -108,6 +109,7 @@ export default function Home() {
           </div>
         </section>
       </main>
+      <Footer />
     </>
   );
 }

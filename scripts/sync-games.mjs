@@ -1,5 +1,6 @@
 // games/ 안의 게임 폴더(index.html이 있는 폴더)를 찾아 public/play/<slug>/ 로 복사하고
 // lib/games.generated.json 목록을 만든다. dev/build 전에 자동 실행된다.
+import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -77,4 +78,14 @@ if (fs.existsSync(sharedDir)) fs.cpSync(sharedDir, path.join(outDir, "_shared"),
 
 games.sort((a, b) => a.title.localeCompare(b.title, "ko"));
 fs.writeFileSync(path.join(root, "lib", "games.generated.json"), JSON.stringify(games, null, 2) + "\n");
+
+// 최근 업데이트 날짜: 마지막 커밋 날짜 (git을 못 쓰면 오늘 날짜, 한국 시간)
+let updatedAt;
+try {
+  updatedAt = execSync("git log -1 --format=%cs", { cwd: root, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+} catch {}
+if (!/^\d{4}-\d{2}-\d{2}$/.test(updatedAt || "")) {
+  updatedAt = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+fs.writeFileSync(path.join(root, "lib", "build-info.generated.json"), JSON.stringify({ updatedAt }, null, 2) + "\n");
 console.log(`✓ ${games.length}개 게임 동기화: ${games.map((g) => g.slug).join(", ")}`);

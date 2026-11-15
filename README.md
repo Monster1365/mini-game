@@ -46,6 +46,9 @@ npm run build    # 프로덕션 빌드
 
 - `sitemap.xml`, `robots.txt`, 페이지별 메타 태그와 구조화 데이터(JSON-LD)는 자동으로 만들어집니다.
 - 사이트 주소는 Vercel 프로덕션 도메인을 자동으로 씁니다. 다른 도메인을 쓰려면 환경 변수 `NEXT_PUBLIC_SITE_URL`을 지정하세요.
+- 문의 양식(`/contact`): 서버가 [Resend](https://resend.com)로 운영자 메일함에 전달해요(운영자 주소는 화면에 나오지 않아요).
+  Vercel 환경 변수 `RESEND_API_KEY`, `CONTACT_EMAIL`(받을 주소)을 넣고 다시 배포하세요. 도메인을 인증하지 않았다면
+  `CONTACT_EMAIL`은 Resend에 가입한 이메일과 같아야 해요. 보내는 주소를 바꾸려면 `CONTACT_FROM`(선택). 둘 중 하나라도 없으면 "준비 중" 안내가 보여요.
 - 검색엔진 소유 확인: Vercel 환경 변수 `GOOGLE_SITE_VERIFICATION`(구글 서치 콘솔), `NAVER_SITE_VERIFICATION`(네이버 서치어드바이저)에
   확인 코드를 넣고 다시 배포하면 메타 태그가 자동으로 들어갑니다.
 

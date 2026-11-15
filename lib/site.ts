@@ -1,4 +1,6 @@
-// 사이트 공통 정보 (SEO)
+// 사이트 공통 정보 (SEO · footer · 안내 페이지)
+import buildInfo from "./build-info.generated.json";
+
 // 주소: NEXT_PUBLIC_SITE_URL > Vercel 프로덕션 도메인(빌드 때 자동 제공) > 로컬
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 export const SITE_URL = (
@@ -15,3 +17,10 @@ export const SITE_KEYWORDS = [
   "플래시 게임", "옛날 게임", "추억의 게임", "빠른 게임", "2인용 게임",
   "당구게임", "윷놀이", "알까기", "오목", "스도쿠", "지뢰찾기", "솔리테어", "끝말잇기",
 ];
+
+/** 최근 업데이트 날짜 (YYYY-MM-DD, 빌드 때 마지막 커밋 날짜) */
+export const UPDATED_AT: string = buildInfo.updatedAt;
+export const formatDate = (d: string) => {
+  const [y, m, day] = d.split("-").map(Number);
+  return `${y}년 ${m}월 ${day}일`;
+};
