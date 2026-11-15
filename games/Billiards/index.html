@@ -481,9 +481,21 @@ const Rules = {
 
       // 8번 공
       if (eight) {
-        if (wasBreak || state.practice) {
-          respot(state, state.balls.find(b => b.number === 8), FOOT);
-          res.messages.push(wasBreak ? '브레이크에서 들어간 8번은 제자리로' : '8번은 마지막에! 제자리로 돌려놓았어요');
+        const eightBall = state.balls.find(b => b.number === 8);
+        // 이 샷이 끝난 뒤에도 8번 말고 다른 목적구가 남아 있는지
+        const othersLeft = state.balls.some(b => b.onTable && b.kind === 'object' && b.number !== 8);
+        if (wasBreak) {
+          respot(state, eightBall, FOOT);
+          res.messages.push('브레이크에서 들어간 8번은 제자리로');
+        } else if (state.practice) {
+          // 혼자 연습: 다른 공을 모두 넣은 뒤 8번을 넣으면 클리어
+          if (!othersLeft && !scratch) {
+            res.winner = 0;
+            res.messages.push('8번 공 성공! 모든 공을 넣었어요');
+            return res;
+          }
+          respot(state, eightBall, FOOT);
+          res.messages.push(othersLeft ? '8번은 마지막에! 제자리로 돌려놓았어요' : '흰 공과 8번이 함께 빠졌어요. 8번은 제자리로');
         } else if (res.foul || !groupClearedBefore) {
           res.winner = 1 - state.turn;
           res.messages.push(res.foul ? `파울과 함께 8번이 들어갔어요` : '자기 공을 다 넣기 전에 8번이 들어갔어요');
