@@ -100,6 +100,20 @@
         font-size: 13px;
         margin-top: 2px;
       }
+      #muteBtn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 5;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        font-size: 17px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.35);
+        box-shadow: none;
+      }
+      #muteBtn:hover { transform: none; background: rgba(0, 0, 0, 0.5); }
       #stage {
         position: relative;
         border-radius: 14px;
@@ -238,6 +252,7 @@
       </header>
       <div id="stage">
         <canvas id="game"></canvas>
+        <button id="muteBtn" type="button" title="소리 켜기/끄기 (M)" aria-label="소리 켜기/끄기">🔊</button>
 
         <div id="menu" class="overlay">
           <h1>💦 물풍선 배틀</h1>
@@ -266,7 +281,7 @@
               패배!
             </div>
           </div>
-          <p class="foot"><kbd>P</kbd> 일시정지 · <kbd>Esc</kbd> 메뉴로</p>
+          <p class="foot"><kbd>P</kbd> 일시정지 · <kbd>M</kbd> 소리 · <kbd>Esc</kbd> 메뉴로</p>
         </div>
 
         <div id="over" class="overlay hidden">
@@ -357,6 +372,137 @@
         try {
           best = parseFloat(localStorage.getItem("wb_best") || "0") || 0;
         } catch (e) {}
+
+        // ===== 사운드 (Web Audio 합성, 외부 파일 없음) =====
+        // 메뉴 뒤에서 도는 데모 게임에서는 소리를 내지 않는다
+        const Sound = (() => {
+          let ctx = null,
+            noise = null,
+            muted = false;
+          try {
+            muted = localStorage.getItem("wb_muted") === "1";
+          } catch (e) {}
+          const last = {}; // 같은 소리가 한꺼번에 겹치지 않게 (연쇄 폭발 등)
+          function unlock() {
+            if (!ctx) {
+              const AC = window.AudioContext || window.webkitAudioContext;
+              if (!AC) return;
+              ctx = new AC();
+              noise = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+              const d = noise.getChannelData(0);
+              for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            }
+            if (ctx.state === "suspended") ctx.resume();
+          }
+          const live = () => G && G.mode !== "demo" && state !== "menu";
+          function ok(name, gapMs) {
+            if (!ctx || muted || ctx.state !== "running" || !live()) return false;
+            const now = performance.now();
+            if (gapMs && last[name] && now - last[name] < gapMs) return false;
+            last[name] = now;
+            return true;
+          }
+          function tone(freq, vol, decay, type = "sine", at = 0, slideTo = 0) {
+            const t = ctx.currentTime + at,
+              o = ctx.createOscillator(),
+              g = ctx.createGain();
+            o.type = type;
+            o.frequency.setValueAtTime(freq, t);
+            if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + decay);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+            o.connect(g).connect(ctx.destination);
+            o.start(t);
+            o.stop(t + decay + 0.03);
+          }
+          function noiseHit(type, freq, vol, decay, at = 0, sweepTo = 0, q = 1) {
+            const t = ctx.currentTime + at,
+              n = ctx.createBufferSource(),
+              f = ctx.createBiquadFilter(),
+              g = ctx.createGain();
+            n.buffer = noise;
+            f.type = type;
+            f.Q.value = q;
+            f.frequency.setValueAtTime(freq, t);
+            if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + decay);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+            n.connect(f).connect(g).connect(ctx.destination);
+            n.start(t, Math.random() * 0.3);
+            n.stop(t + decay + 0.02);
+          }
+          return {
+            unlock,
+            get muted() {
+              return muted;
+            },
+            set muted(v) {
+              muted = v;
+              try {
+                localStorage.setItem("wb_muted", v ? "1" : "0");
+              } catch (e) {}
+            },
+            // 물풍선 놓기: 말랑한 '뽁'
+            place() {
+              if (!ok("place", 40)) return;
+              tone(260, 0.2, 0.12, "sine", 0, 520);
+              tone(780, 0.05, 0.06, "triangle");
+            },
+            // 터짐: 물 튀는 '촤악' + 낮은 울림
+            splash() {
+              if (!ok("splash", 70)) return;
+              noiseHit("lowpass", 3800, 0.42, 0.32, 0, 600, 0.7);
+              noiseHit("bandpass", 1200, 0.18, 0.12, 0, 0, 1.2);
+              tone(110, 0.28, 0.2, "sine", 0, 60);
+            },
+            // 상자 부서짐: 나무 '빡'
+            box() {
+              if (!ok("box", 60)) return;
+              noiseHit("bandpass", 900, 0.32, 0.09, 0.02, 0, 3);
+              tone(180, 0.12, 0.08, "triangle", 0.02, 120);
+            },
+            // 아이템 획득: 반짝 두 음
+            item() {
+              if (!ok("item", 50)) return;
+              tone(880, 0.12, 0.1, "triangle");
+              tone(1318.5, 0.12, 0.16, "triangle", 0.07);
+            },
+            // 물방울에 갇힘: 뽀글뽀글
+            trapped() {
+              if (!ok("trapped", 100)) return;
+              for (let i = 0; i < 5; i++) tone(320 + i * 90 + Math.random() * 40, 0.1, 0.07, "sine", i * 0.06, 520 + i * 90);
+            },
+            // 물방울이 터짐: '퐁!' + 내려가는 소리
+            pop() {
+              if (!ok("pop", 80)) return;
+              noiseHit("highpass", 2000, 0.35, 0.06);
+              tone(900, 0.2, 0.3, "triangle", 0.02, 180);
+            },
+            start() {
+              if (!ok("start", 200)) return;
+              tone(523.25, 0.12, 0.12, "triangle");
+              tone(783.99, 0.14, 0.2, "triangle", 0.1);
+            },
+            win() {
+              if (!ok("end", 300)) return;
+              [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.15, 0.32, "triangle", i * 0.1));
+              [523.25, 659.25, 783.99].forEach((f) => tone(f, 0.08, 1.0, "sine", 0.45));
+            },
+            draw() {
+              if (!ok("end", 300)) return;
+              tone(587.33, 0.12, 0.3, "triangle");
+              tone(440, 0.12, 0.45, "triangle", 0.22);
+            },
+            // 1인 게임 오버: 내려가는 세 음 (최고 기록이면 팡파르)
+            over(isBest) {
+              if (isBest) return this.win();
+              if (!ok("end", 300)) return;
+              [392, 329.63, 261.63].forEach((f, i) => tone(f, 0.13, 0.3, "triangle", i * 0.16));
+            },
+          };
+        })();
 
         const held = []; // 눌린 순서대로 키 기록 (최근 방향 우선)
 
@@ -526,6 +672,7 @@
           if (G.grid[r][c] !== 0 || balloonAt(c, r)) return;
           addBalloon(c, r, FUSE, p.range, p);
           p.active++;
+          Sound.place();
         }
 
         function addBalloon(c, r, fuse, range, owner) {
@@ -551,6 +698,7 @@
               if (G.grid[r][c] === 2) {
                 G.grid[r][c] = 0;
                 G.breaking.push({ c, r, t: 0 });
+                Sound.box();
                 burst(c * T + T / 2, r * T + T / 2, "#c98243", 10, 120);
                 setFlame(c, r, kind, dx, dy, true, true);
                 break;
@@ -565,6 +713,7 @@
           }
           burst(b.c * T + T / 2, b.r * T + T / 2, "#bfe9ff", 14, 160);
           G.shake = Math.max(G.shake, 5);
+          Sound.splash();
         }
 
         function setFlame(c, r, kind, dx, dy, end, fromBox) {
@@ -603,11 +752,13 @@
         function trap(p) {
           p.state = "trapped";
           p.trapMax = p.trapT = G.mode === "solo" ? 1.0 : 3.0;
+          Sound.trapped();
         }
 
         function pop(p) {
           p.state = "dead";
           p.deadT = 0;
+          Sound.pop();
           burst(p.x, p.y - 6, "#d7f1ff", 26, 220);
           burst(p.x, p.y - 6, p.cfg.color, 10, 140);
           G.shake = Math.max(G.shake, 8);
@@ -684,6 +835,7 @@
             if (it && G.grid[r][c] === 0) {
               applyItem(p, it);
               G.items[r][c] = null;
+              Sound.item();
               burst(c * T + T / 2, r * T + T / 2, "#fff38a", 10, 110);
             }
           }
@@ -1209,6 +1361,8 @@
           G = newGame(mode);
           state = "play";
           paused = false;
+          Sound.unlock();
+          Sound.start();
           menuEl.classList.add("hidden");
           overEl.classList.add("hidden");
         }
@@ -1232,6 +1386,7 @@
                 localStorage.setItem("wb_best", String(best));
               } catch (e) {}
             }
+            Sound.over(isBest);
             $("overTitle").textContent = "물방울에 갇혔어요!";
             $("overSub").innerHTML =
               `생존 시간 <b>${t.toFixed(1)}초</b>` +
@@ -1240,6 +1395,8 @@
                 : ` · 최고 기록 ${best.toFixed(1)}초`);
           } else {
             const w = G.result.winner;
+            if (w) Sound.win();
+            else Sound.draw();
             $("overTitle").innerHTML = w
               ? `<span style="color:${w.cfg.color}">${w.cfg.name}</span> 승리!`
               : "무승부!";
@@ -1274,7 +1431,25 @@
           "ShiftRight",
           "Enter",
         ]);
+        const muteBtn = $("muteBtn");
+        const renderMute = () => {
+          muteBtn.textContent = Sound.muted ? "🔇" : "🔊";
+        };
+        const toggleMute = () => {
+          Sound.unlock();
+          Sound.muted = !Sound.muted;
+          renderMute();
+        };
+        muteBtn.addEventListener("click", (e) => {
+          e.currentTarget.blur();
+          toggleMute();
+        });
+        renderMute();
+        // 첫 사용자 입력에서 오디오 시작 (브라우저 자동재생 정책)
+        addEventListener("pointerdown", () => Sound.unlock(), { capture: true });
         addEventListener("keydown", (e) => {
+          Sound.unlock();
+          if (e.code === "KeyM" && !e.repeat) toggleMute();
           if (BLOCK.has(e.code)) e.preventDefault();
           if (!held.includes(e.code)) held.push(e.code);
           if (e.repeat) return;

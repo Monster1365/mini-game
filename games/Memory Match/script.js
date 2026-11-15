@@ -49,6 +49,64 @@
   };
   const bestKey = () => `memory-match:best:${state.pairs}`;
 
+  // ---------- 사운드 (Web Audio 합성, 외부 파일 없음) ----------
+  const Sound = (() => {
+    let ctx = null, noise = null, muted = !!storage.get('memory-match:muted');
+    function unlock() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        noise = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+    const ready = () => ctx && !muted && ctx.state === 'running';
+    function tone(freq, vol, decay, type = 'sine', at = 0, slideTo = 0) {
+      const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + decay);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + decay + 0.03);
+    }
+    function swish(freq, vol, decay, at = 0, sweepTo = 0) {
+      const t = ctx.currentTime + at, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = noise; f.type = 'bandpass'; f.Q.value = 1.4;
+      f.frequency.setValueAtTime(freq, t);
+      if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + decay);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      n.connect(f).connect(g).connect(ctx.destination); n.start(t, Math.random() * 0.2); n.stop(t + decay + 0.02);
+    }
+    return {
+      unlock,
+      get muted() { return muted; },
+      set muted(v) { muted = v; storage.set('memory-match:muted', v); },
+      flip() { if (ready()) { swish(4800, 0.28, 0.07, 0, 2400); tone(700, 0.04, 0.04, 'triangle'); } },
+      // 짝 맞춤: 연속으로 맞힐수록 음이 반음씩 올라간다
+      match(streak) {
+        if (!ready()) return;
+        const base = 659.25 * Math.pow(2, Math.min(streak, 8) / 12);
+        tone(base, 0.16, 0.22, 'triangle', 0.02);
+        tone(base * 1.5, 0.14, 0.32, 'triangle', 0.12);
+      },
+      miss() { if (ready()) { tone(220, 0.12, 0.18, 'triangle', 0, 165); tone(165, 0.08, 0.22, 'sine', 0.1, 130); } },
+      deal(n) { if (ready()) for (let i = 0; i < Math.min(n, 16); i++) swish(3600 + Math.random() * 1400, 0.1, 0.035, i * 0.03); },
+      win() {
+        if (!ready()) return;
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.15, 0.32, 'triangle', i * 0.1));
+        [523.25, 659.25, 783.99].forEach(f => tone(f, 0.08, 1.0, 'sine', 0.45));
+        for (let i = 0; i < 5; i++) tone(1568 + Math.random() * 1000, 0.03, 0.14, 'sine', 0.5 + i * 0.08);
+      },
+    };
+  })();
+  let streak = 0; // 연속으로 맞힌 짝 수 (효과음 음높이용)
+
   // ---------- 유틸 ----------
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -133,6 +191,7 @@
     if (state.lock || btn === state.first || btn.classList.contains('matched')) return;
 
     startTimer();
+    Sound.flip();
     btn.classList.add('flipped');
     btn.setAttribute('aria-label', `${btn._card.rank}${btn._card.suit}`);
 
@@ -158,6 +217,7 @@
       c.setAttribute('aria-disabled', 'true');
     });
     state.matched++;
+    Sound.match(streak++);
     resetTurn();
     updateStats();
     if (state.matched === state.pairs) setTimeout(win, 600);
@@ -165,8 +225,9 @@
 
   function handleMismatch() {
     state.lock = true;
+    streak = 0;
     const pair = [state.first, state.second];
-    setTimeout(() => pair.forEach((c) => c.classList.add('wrong')), 350);
+    setTimeout(() => { Sound.miss(); pair.forEach((c) => c.classList.add('wrong')); }, 350);
     setTimeout(() => {
       pair.forEach((c) => {
         c.classList.remove('flipped', 'wrong');
@@ -191,6 +252,7 @@
 
   function win() {
     stopTimer();
+    Sound.win();
     const result = { moves: state.moves, time: state.elapsed };
     const best = storage.get(bestKey());
     const isBest = !best || result.moves < best.moves ||
@@ -221,6 +283,8 @@
 
     board.style.setProperty('--cols', COLS[pairs] || 4);
     board.replaceChildren(...buildDeck(pairs).map(createCard));
+    streak = 0;
+    Sound.deal(pairs * 2);
     updateStats();
     storage.set('memory-match:level', pairs);
   }
@@ -229,6 +293,13 @@
   document.querySelectorAll('.level').forEach((b) =>
     b.addEventListener('click', () => newGame(Number(b.dataset.pairs))));
   $('#restart').addEventListener('click', () => newGame());
+  const muteBtn = $('#mute');
+  const renderMute = () => { muteBtn.textContent = Sound.muted ? '🔇' : '🔊'; };
+  muteBtn.addEventListener('click', () => { Sound.unlock(); Sound.muted = !Sound.muted; renderMute(); });
+  renderMute();
+  // 첫 사용자 입력에서 오디오 시작 (브라우저 자동재생 정책)
+  document.addEventListener('pointerdown', () => Sound.unlock(), { capture: true });
+  document.addEventListener('keydown', () => Sound.unlock(), { capture: true });
   $('#again').addEventListener('click', () => newGame());
   els.win.addEventListener('click', (e) => { if (e.target === els.win) els.win.hidden = true; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') els.win.hidden = true; });
