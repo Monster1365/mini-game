@@ -31,7 +31,7 @@ export default function NewsPage() {
         </header>
 
         <section className="news-block" aria-labelledby="news-new">
-          <h3 id="news-new"><span aria-hidden>🎮</span> 새로 추가된 게임</h3>
+          <h3 id="news-new">새로 추가된 게임</h3>
           {news.newGames.length ? (
             <ul className="news-games">
               {news.newGames.map(({ slug, note }) => {
@@ -50,12 +50,12 @@ export default function NewsPage() {
         </section>
 
         <section className="news-block" aria-labelledby="news-improve">
-          <h3 id="news-improve"><span aria-hidden>✨</span> 바뀐 점</h3>
+          <h3 id="news-improve">바뀐 점</h3>
           {news.improvements.length ? <ul>{news.improvements.map((s) => <li key={s}>{s}</li>)}</ul> : <Empty />}
         </section>
 
         <section className="news-block" aria-labelledby="news-fix">
-          <h3 id="news-fix"><span aria-hidden>🛠️</span> 버그 수정</h3>
+          <h3 id="news-fix">버그 수정</h3>
           {news.fixes.length ? <ul>{news.fixes.map((s) => <li key={s}>{s}</li>)}</ul> : <Empty />}
         </section>
       </article>
