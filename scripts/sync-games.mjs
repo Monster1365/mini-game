@@ -61,6 +61,12 @@ for (const entry of fs.readdirSync(gamesDir, { withFileTypes: true })) {
     title: meta.title || htmlTitle || entry.name,
     emoji: meta.emoji || "🎮",
     description: meta.description || "",
+    // SEO: 검색 제목 한 줄 설명, 장르, 키워드, 게임 페이지 아래 소개글·하는 법
+    tagline: meta.tagline || "",
+    genre: meta.genre || "기타",
+    keywords: Array.isArray(meta.keywords) ? meta.keywords : [],
+    about: meta.about || "",
+    howTo: Array.isArray(meta.howTo) ? meta.howTo : [],
     ...(thumb && { thumbnail: `/play/${slug}/${thumb.split("/").map(encodeURIComponent).join("/")}` }),
   });
 }

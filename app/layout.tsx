@@ -1,19 +1,36 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const description = "브라우저에서 바로 즐기는 미니게임 모음";
+// 검색엔진 소유 확인 코드 (Vercel 환경 변수로 넣으면 자동 적용)
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+const naverVerification = process.env.NAVER_SITE_VERIFICATION;
 
 export const metadata: Metadata = {
-  title: { default: "미니게임 아케이드", template: "%s · 미니게임 아케이드" },
-  description,
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  applicationName: SITE_NAME,
+  alternates: { canonical: "/" },
   icons: {
     icon: "/images/favicon.ico",
     apple: "/images/apple-touch-icon.png",
   },
   openGraph: {
-    title: "미니게임 아케이드",
-    description,
-    images: [{ url: "/images/og.png", width: 1200, height: 630 }],
+    type: "website",
+    locale: "ko_KR",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    images: [{ url: "/images/og.png", width: 1200, height: 630, alt: SITE_NAME }],
+  },
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION, images: ["/images/og.png"] },
+  robots: { index: true, follow: true },
+  verification: {
+    ...(googleVerification && { google: googleVerification }),
+    ...(naverVerification && { other: { "naver-site-verification": naverVerification } }),
   },
 };
 

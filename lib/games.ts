@@ -7,6 +7,14 @@ export type Game = {
   description: string;
   /** games/<폴더>/thumbnail.png 등이 있으면 그 경로 (없으면 emoji 표시) */
   thumbnail?: string;
+  /** SEO: 검색 결과 제목에 붙는 한 줄 설명 */
+  tagline: string;
+  genre: string;
+  keywords: string[];
+  /** 게임 페이지 아래 '게임 소개' 문단 */
+  about: string;
+  /** 게임 페이지 아래 '하는 법' 목록 */
+  howTo: string[];
 };
 
 export const games: Game[] = data;

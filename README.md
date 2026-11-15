@@ -30,6 +30,25 @@ npm run build    # 프로덕션 빌드
 `games/`의 게임 폴더를 `public/play/<slug>/`로 복사하고 목록(`lib/games.generated.json`)을 만듭니다.
 이 두 결과물은 자동 생성되므로 git에 올리지 않습니다.
 
+## 검색 최적화 (SEO)
+
+각 게임의 `game.json`에 아래 항목을 채우면 검색 결과 제목·설명과 게임 페이지 아래 소개글에 쓰입니다.
+
+```json
+{
+  "tagline": "2~4인이 함께하는 무료 온라인 윷놀이",   // 검색 제목에 붙는 한 줄 설명
+  "genre": "보드게임",                              // 홈 아래 장르별 목록
+  "keywords": ["윷놀이", "온라인 윷놀이", "전통 놀이"],
+  "about": "게임 소개 문단 (첫 문장은 검색 결과 설명에도 쓰여요)",
+  "howTo": ["하는 법 1", "하는 법 2"]
+}
+```
+
+- `sitemap.xml`, `robots.txt`, 페이지별 메타 태그와 구조화 데이터(JSON-LD)는 자동으로 만들어집니다.
+- 사이트 주소는 Vercel 프로덕션 도메인을 자동으로 씁니다. 다른 도메인을 쓰려면 환경 변수 `NEXT_PUBLIC_SITE_URL`을 지정하세요.
+- 검색엔진 소유 확인: Vercel 환경 변수 `GOOGLE_SITE_VERIFICATION`(구글 서치 콘솔), `NAVER_SITE_VERIFICATION`(네이버 서치어드바이저)에
+  확인 코드를 넣고 다시 배포하면 메타 태그가 자동으로 들어갑니다.
+
 ## 게임 썸네일 넣기
 
 게임 폴더에 `thumbnail.png`(또는 `.webp` `.jpg` `.svg`)를 넣으면 홈 카드의 이모지가

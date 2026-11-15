@@ -221,6 +221,25 @@ a { color: inherit; }
 .card-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .play { flex: none; color: var(--accent); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
 
+/* ---------- 홈 아래 소개 · 게임 아래 소개 (SEO 본문) ---------- */
+.intro, .game-info { color: var(--muted); line-height: 1.75; }
+.intro { margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--line); }
+.intro h2, .game-info h2 { color: var(--text); font-size: 1.15rem; margin: 0 0 10px; }
+.intro p { margin: 0 0 20px; max-width: 760px; }
+.intro strong { color: var(--text); font-weight: 600; }
+.genres { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.genre h3 { margin: 0 0 6px; color: var(--text); font-size: 0.95rem; }
+.genre ul, .other-games { margin: 0; padding: 0; list-style: none; font-size: 0.88rem; }
+.genre li { margin: 3px 0; }
+.intro a, .game-info a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.intro a:hover, .game-info a:hover { text-decoration: underline; }
+.game-info { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
+.game-info h2 + p, .game-info p { margin: 0 0 22px; }
+.game-info .game-tagline { color: var(--text); font-weight: 600; margin-bottom: 8px; }
+.game-info ol { margin: 0 0 26px; padding-left: 1.3em; }
+.game-info li { margin: 4px 0; }
+.other-games { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+
 /* ---------- 설정 메뉴 ---------- */
 .settings {
   position: absolute;
