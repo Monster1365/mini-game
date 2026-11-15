@@ -156,6 +156,7 @@
     <button type="button" class="btn" id="hintBtn">💡 힌트</button>
     <button type="button" class="btn" id="newBtn">↻ 새 게임</button>
     <button type="button" class="btn" id="autoBtn" hidden>⚡ 자동 완성</button>
+    <button type="button" class="btn" id="muteBtn" title="소리 켜기/끄기" aria-label="소리 켜기/끄기">🔊</button>
   </div>
   <div class="table" id="table" aria-label="솔리테어 테이블"><div id="toast"></div></div>
 
@@ -323,7 +324,69 @@ const Klondike = (() => {
   const table = $('table');
   const KEY = 'solitaire-settings', BEST = 'solitaire-best';
   let drawCount = 1;
-  try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); if (s.draw === 3) drawCount = 3; } catch (e) {}
+  let muted = false;
+  try { const s = JSON.parse(localStorage.getItem(KEY) || '{}'); if (s.draw === 3) drawCount = 3; muted = !!s.muted; } catch (e) {}
+  const saveSettings = () => { try { localStorage.setItem(KEY, JSON.stringify({ draw: drawCount, muted })); } catch (e) {} };
+
+  // ---------- 사운드 (Web Audio 합성, 외부 파일 없음) ----------
+  const Sound = (() => {
+    let ctx = null, noise = null;
+    function unlock() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        noise = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+    const ready = () => ctx && !muted && ctx.state === 'running';
+    function tone(freq, vol, decay, type = 'sine', at = 0) {
+      const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + decay + 0.03);
+    }
+    // 필터 걸린 잡음: 카드가 스치거나 바닥에 닿는 소리
+    function swish(freq, q, vol, decay, at = 0, sweepTo = 0) {
+      const t = ctx.currentTime + at, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = noise; f.type = 'bandpass'; f.Q.value = q;
+      f.frequency.setValueAtTime(freq, t);
+      if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + decay);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      n.connect(f).connect(g).connect(ctx.destination); n.start(t, Math.random() * 0.2); n.stop(t + decay + 0.02);
+    }
+    // 파운데이션 음: A(1)에서 K(13)로 갈수록 높아지는 장조 음계
+    const SCALE = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21];
+    return {
+      unlock,
+      flip() { if (ready()) { swish(5200, 1.4, 0.32, 0.07, 0, 2600); swish(1800, 2, 0.12, 0.03, 0.035); } },
+      place() { if (ready()) { swish(1600, 1.8, 0.4, 0.045); tone(320, 0.12, 0.06, 'sine'); } },
+      found(rank) {
+        if (!ready()) return;
+        swish(1800, 1.8, 0.3, 0.04);
+        const f = 523.25 * Math.pow(2, SCALE[Math.max(0, Math.min(12, rank - 1))] / 12);
+        tone(f, 0.14, 0.28, 'triangle', 0.02);
+        tone(f * 2, 0.04, 0.2, 'sine', 0.02);
+      },
+      reveal() { if (ready()) swish(4200, 1.6, 0.22, 0.06, 0.07, 2200); },
+      recycle() { if (ready()) for (let i = 0; i < 9; i++) swish(3200 + Math.random() * 1200, 1.4, 0.14, 0.04, i * 0.028); },
+      undo() { if (ready()) swish(2600, 1.2, 0.16, 0.08, 0, 5200); },
+      nope() { if (ready()) tone(150, 0.1, 0.1, 'triangle'); },
+      win() {
+        if (!ready()) return;
+        [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.15, 0.35, 'triangle', i * 0.1));
+        [523.25, 659.25, 783.99, 1046.5].forEach(f => tone(f, 0.07, 1.2, 'sine', 0.55));
+        for (let i = 0; i < 6; i++) tone(2093 + Math.random() * 1200, 0.03, 0.15, 'sine', 0.6 + i * 0.09);
+      },
+    };
+  })();
 
   let g = null, history = [], els = [], slots = {}, geo = null;
   let timer = 0, elapsed = 0, started = false, busy = false;
@@ -453,6 +516,7 @@ const Klondike = (() => {
   function undo() {
     if (busy || !history.length) return;
     const s = JSON.parse(history.pop());
+    Sound.undo();
     Object.assign(g, { stock: s.stock, waste: s.waste, found: s.found, tab: s.tab, moves: s.moves + 1 });
     s.up.forEach((u, i) => (g.cards[i].up = u));
     clearHint();
@@ -470,10 +534,21 @@ const Klondike = (() => {
   }
 
   // ---------- 행동 ----------
+  function moveSound(from, to) {
+    const src = Klondike.pile(g, from);
+    const lead = g.cards[src[from.index]];
+    const reveals = from.type === 'tab' && from.index > 0 && !g.cards[src[from.index - 1]].up;
+    return () => {
+      if (to.type === 'found') Sound.found(lead.rank); else Sound.place();
+      if (reveals) Sound.reveal();
+    };
+  }
   function doMove(from, to) {
     snapshot();
     startClock();
+    const play = moveSound(from, to);
     Klondike.move(g, from, to);
+    play();
     clearHint();
     layout();
     afterMove();
@@ -483,6 +558,7 @@ const Klondike = (() => {
     if (!g.stock.length && !g.waste.length) return;
     snapshot();
     startClock();
+    if (g.stock.length) Sound.flip(); else Sound.recycle();
     Klondike.draw(g);
     clearHint();
     layout();
@@ -522,6 +598,7 @@ const Klondike = (() => {
     const step = () => {
       const s = Klondike.autoStep(g);
       if (!s) { busy = false; afterMove(); return; }
+      Sound.found(g.cards[s.id].rank);
       Klondike.move(g, s.from, s.to);
       layout(); updateBar();
       setTimeout(step, 70);
@@ -539,7 +616,7 @@ const Klondike = (() => {
     if (!loc) return;
     if (loc.type === 'stock') { onStock(); return; }
     const run = Klondike.pickable(g, loc);
-    if (!run) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); return; }
+    if (!run) { Sound.nope(); el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); return; }
     drag = { id: e.pointerId, loc, run, x0: e.clientX, y0: e.clientY, moved: false };
     try { table.setPointerCapture(e.pointerId); } catch (err) {}
   });
@@ -609,7 +686,7 @@ const Klondike = (() => {
   function clickMove(loc, run) {
     const to = Klondike.bestTarget(g, loc);
     if (to) doMove(loc, to);
-    else { const el = els[run[0]]; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+    else { Sound.nope(); const el = els[run[0]]; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
   }
 
   // ---------- 승리 ----------
@@ -617,6 +694,7 @@ const Klondike = (() => {
   function win() {
     clearInterval(timer);
     busy = true;
+    setTimeout(() => Sound.win(), 150);
     let bests = {};
     try { bests = JSON.parse(localStorage.getItem(BEST) || '{}') || {}; } catch (e) {}
     const key = 'draw' + g.drawCount, prev = bests[key];
@@ -659,11 +737,16 @@ const Klondike = (() => {
   $('undoBtn').onclick = undo;
   $('hintBtn').onclick = showHint;
   $('autoBtn').onclick = autoFinish;
+  const renderMute = () => { $('muteBtn').textContent = muted ? '🔇' : '🔊'; };
+  $('muteBtn').onclick = () => { Sound.unlock(); muted = !muted; saveSettings(); renderMute(); };
+  // 첫 사용자 입력에서 오디오 시작 (브라우저 자동재생 정책)
+  window.addEventListener('pointerdown', () => Sound.unlock(), { capture: true });
+  window.addEventListener('keydown', () => Sound.unlock(), { capture: true });
   document.querySelectorAll('[data-draw]').forEach(b => b.addEventListener('click', () => {
     const n = Number(b.dataset.draw);
     if (n === drawCount) return;
     drawCount = n;
-    try { localStorage.setItem(KEY, JSON.stringify({ draw: n })); } catch (e) {}
+    saveSettings();
     newGame();
     toast(`${n}장씩 넘기기로 새 게임`);
   }));
@@ -674,6 +757,7 @@ const Klondike = (() => {
   });
   new ResizeObserver(() => { if (!g) return; measure(); if (!winRaf) layout(); }).observe(table);
 
+  renderMute();
   newGame();
 })();
 </script>

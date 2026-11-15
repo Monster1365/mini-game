@@ -102,6 +102,7 @@
     <div class="actions">
       <button id="undoBtn" type="button">↶ 무르기</button>
       <button id="newBtn" type="button">↻ 새 게임</button>
+      <button id="muteBtn" type="button" title="소리 켜기/끄기" aria-label="소리 켜기/끄기">🔊</button>
     </div>
   </div>
   <p id="status" aria-live="polite"></p>
@@ -228,6 +229,72 @@
     }
   }
 
+  // ---------- 사운드 (Web Audio 합성, 외부 파일 없음) ----------
+  const Sound = (() => {
+    let ctx = null, noise = null, muted = false;
+    try { muted = !!JSON.parse(localStorage.getItem('omok-settings') || '{}').muted; } catch (e) {}
+    function unlock() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        noise = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+    const ready = () => ctx && !muted && ctx.state === 'running';
+    function tone(freq, vol, decay, type = 'sine', at = 0, end = 1) {
+      const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (end !== 1) o.frequency.exponentialRampToValueAtTime(freq * end, t + decay);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + decay + 0.03);
+    }
+    function burst(freq, q, vol, decay) {
+      const t = ctx.currentTime, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = noise; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      n.connect(f).connect(g).connect(ctx.destination);
+      n.start(t); n.stop(t + decay + 0.02);
+    }
+    return {
+      unlock,
+      get muted() { return muted; },
+      set muted(v) {
+        muted = v;
+        try { localStorage.setItem('omok-settings', JSON.stringify({ muted })); } catch (e) {}
+      },
+      // 바둑돌이 나무판에 닿는 '딱' (높은 딸깍 + 낮은 울림)
+      stone() {
+        if (!ready()) return;
+        burst(2300 + Math.random() * 500, 3, 0.55, 0.035);
+        tone(210 + Math.random() * 30, 0.32, 0.09, 'sine', 0, 0.7);
+        tone(1250, 0.06, 0.03, 'triangle');
+      },
+      // 무르기: 돌을 집어 드는 가벼운 소리
+      lift() { if (ready()) burst(3200, 2, 0.18, 0.03); },
+      // 금수 자리: 짧고 낮은 경고음
+      blocked() { if (ready()) { tone(180, 0.12, 0.09, 'square'); tone(140, 0.1, 0.12, 'square', 0.08); } },
+      // 승리 팡파르
+      win() {
+        if (!ready()) return;
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.16, 0.32, 'triangle', i * 0.11));
+        [523.25, 659.25, 783.99].forEach(f => tone(f, 0.09, 0.9, 'sine', 0.48));
+      },
+      // 무승부: 담담하게 내려가는 두 음
+      draw() { if (ready()) { tone(587.33, 0.12, 0.3, 'triangle'); tone(440, 0.12, 0.45, 'triangle', 0.22); } },
+    };
+  })();
+  const muteBtn = document.getElementById('muteBtn');
+  const renderMute = () => { muteBtn.textContent = Sound.muted ? '🔇' : '🔊'; };
+
   function showFlash(msg) {
     flash = msg;
     clearTimeout(flashTimer);
@@ -238,17 +305,20 @@
   function place(r, c) {
     if (over || board[r][c] !== EMPTY) return;
     const reason = turn === BLACK && forbidden.get(r + ',' + c);
-    if (reason) { showFlash(`✕ 금수 자리예요 (${reason})`); return; }
+    if (reason) { Sound.blocked(); showFlash(`✕ 금수 자리예요 (${reason})`); return; }
     flash = null;
     board[r][c] = turn;
     history.push([r, c]);
+    Sound.stone();
     const line = findWin(r, c);
     if (line) {
       winLine = line;
       over = true;
       score[turn]++;
+      setTimeout(() => Sound.win(), 120);
     } else if (history.length === N * N) {
       over = true;
+      setTimeout(() => Sound.draw(), 120);
     } else {
       turn = turn === BLACK ? WHITE : BLACK;
     }
@@ -259,6 +329,7 @@
     if (over || !history.length) return;
     const [r, c] = history.pop();
     board[r][c] = EMPTY;
+    Sound.lift();
     turn = turn === BLACK ? WHITE : BLACK;
     update();
   }
@@ -385,7 +456,10 @@
     }
   });
   canvas.addEventListener('pointerleave', () => { hover = null; draw(); });
-  canvas.addEventListener('click', e => { const p = cellAt(e); if (p) place(p[0], p[1]); });
+  canvas.addEventListener('click', e => { Sound.unlock(); const p = cellAt(e); if (p) place(p[0], p[1]); });
+  // 첫 사용자 입력에서 오디오 시작 (브라우저 자동재생 정책)
+  window.addEventListener('pointerdown', () => Sound.unlock(), { once: true });
+  muteBtn.addEventListener('click', () => { Sound.unlock(); Sound.muted = !Sound.muted; renderMute(); });
   undoBtn.addEventListener('click', undo);
   document.getElementById('newBtn').addEventListener('click', reset);
   window.addEventListener('keydown', e => {
@@ -393,6 +467,7 @@
   });
   new ResizeObserver(resize).observe(wrap);
 
+  renderMute();
   reset();
   resize();
 })();
