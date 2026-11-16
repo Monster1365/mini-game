@@ -99,6 +99,7 @@
   .info .mistakes.shake { animation: shake .35s; }
   @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
   #newBtn { padding: 7px 12px; }
+  #muteBtn { padding: 7px 10px; }
 
   /* ---------- 보드 ---------- */
   .board {
@@ -192,6 +193,7 @@
       <span class="mistakes" id="mistakesBox">실수 <b id="mistakes">0/3</b></span>
       <span>⏱ <b id="time">0:00</b></span>
       <button type="button" id="newBtn">↻ 새 게임</button>
+      <button type="button" id="muteBtn" title="소리 켜기/끄기 (M)" aria-label="소리 켜기/끄기">🔊</button>
     </div>
   </div>
 
@@ -469,6 +471,74 @@ const Sudoku = (() => {
     render();
   }
 
+  // ---------- 사운드 (Web Audio 합성, 외부 파일 없음) ----------
+  const Sound = (() => {
+    let ctx = null, noise = null, muted = false;
+    try { muted = localStorage.getItem('sudoku-muted') === '1'; } catch (e) {}
+    function unlock() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        noise = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+    const ready = () => ctx && !muted && ctx.state === 'running';
+    function tone(freq, vol, decay, type = 'sine', at = 0, slideTo = 0) {
+      const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + decay);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + decay + 0.03);
+    }
+    function swish(freq, vol, decay, sweepTo, at = 0) {
+      const t = ctx.currentTime + at, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      n.buffer = noise; f.type = 'bandpass'; f.Q.value = 1.3;
+      f.frequency.setValueAtTime(freq, t); f.frequency.exponentialRampToValueAtTime(sweepTo, t + decay);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      n.connect(f).connect(g).connect(ctx.destination); n.start(t, Math.random() * 0.2); n.stop(t + decay + 0.02);
+    }
+    return {
+      unlock,
+      get muted() { return muted; },
+      set muted(v) { muted = v; try { localStorage.setItem('sudoku-muted', v ? '1' : '0'); } catch (e) {} },
+      // 맞는 숫자: 연필로 '톡'
+      place() { if (ready()) { tone(740, 0.1, 0.07, 'triangle'); swish(3000, 0.08, 0.03, 2000); } },
+      // 행·열·박스 완성: 완성한 개수만큼 올라가는 차임
+      unit(count) {
+        if (!ready()) return;
+        [783.99, 987.77, 1174.66, 1567.98].slice(0, Math.min(4, count + 1)).forEach((f, k) => tone(f, 0.12, 0.3, 'sine', 0.06 + k * 0.08));
+      },
+      wrong() { if (ready()) { tone(196, 0.14, 0.12, 'square'); tone(147, 0.12, 0.16, 'square', 0.1); } },
+      note() { if (ready()) tone(1318.5, 0.05, 0.04, 'sine'); },
+      erase() { if (ready()) swish(2600, 0.14, 0.09, 900); },
+      undo() { if (ready()) swish(1200, 0.12, 0.09, 3200); },
+      hint() { if (ready()) [1046.5, 1318.5, 1568, 2093].forEach((f, k) => tone(f, 0.07, 0.18, 'sine', k * 0.05)); },
+      lose() { if (ready()) [392, 349.23, 293.66, 246.94].forEach((f, k) => tone(f, 0.12, 0.35, 'triangle', k * 0.17)); },
+      win() {
+        if (!ready()) return;
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.15, 0.3, 'triangle', i * 0.1));
+        [523.25, 659.25, 783.99].forEach(f => tone(f, 0.08, 1.0, 'sine', 0.45));
+        for (let i = 0; i < 5; i++) tone(1568 + Math.random() * 1000, 0.03, 0.14, 'sine', 0.5 + i * 0.08);
+      },
+    };
+  })();
+
+  // i 칸이 속한 행·열·박스 중 모두 정답으로 채워진 것의 수
+  function unitsCompleted(i) {
+    const r = Sudoku.rowOf(i), c = Sudoku.colOf(i), b = Sudoku.boxOf(i);
+    const full = test => {
+      for (let j = 0; j < 81; j++) if (test(j) && game.values[j] !== game.solution[j]) return false;
+      return true;
+    };
+    return [j => Sudoku.rowOf(j) === r, j => Sudoku.colOf(j) === c, j => Sudoku.boxOf(j) === b].filter(full).length;
+  }
+
   function snapshot() {
     history.push({ values: game.values.slice(), notes: game.notes.slice() });
     if (history.length > 300) history.shift();
@@ -481,6 +551,7 @@ const Sudoku = (() => {
       if (game.values[i]) return;
       snapshot();
       game.notes[i] ^= 1 << d;
+      Sound.note();
     } else {
       if (game.values[i] === d) return;
       snapshot();
@@ -490,7 +561,14 @@ const Sudoku = (() => {
         // 같은 행/열/박스 메모에서 해당 숫자 자동 제거
         for (const p of Sudoku.PEERS[i]) game.notes[p] &= ~(1 << d);
         cells[i].classList.remove('pop'); void cells[i].offsetWidth; cells[i].classList.add('pop');
+        const units = unitsCompleted(i);
+        // 마지막 칸이면 완성 팡파르가 따로 울리므로 차임은 생략
+        if (!game.values.every((v, j) => v === game.solution[j])) {
+          Sound.place();
+          if (units) Sound.unit(units);
+        }
       } else {
+        Sound.wrong();
         addMistake();
       }
     }
@@ -509,6 +587,7 @@ const Sudoku = (() => {
     game.done = true;
     game.lost = true;
     clearInterval(timer);
+    setTimeout(() => Sound.lose(), 250);
     boardEl.classList.add('lost');
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     setTimeout(() => { if (game.lost) $('lose').hidden = false; }, 600);
@@ -518,6 +597,7 @@ const Sudoku = (() => {
     if (game.done || selected === null || game.puzzle[selected]) return;
     if (!game.values[selected] && !game.notes[selected]) return;
     snapshot();
+    Sound.erase();
     game.values[selected] = 0;
     game.notes[selected] = 0;
     afterChange();
@@ -526,6 +606,7 @@ const Sudoku = (() => {
   function undo() {
     if (game.done || !history.length) return;
     const h = history.pop();
+    Sound.undo();
     game.values = h.values;
     game.notes = h.notes;
     afterChange();
@@ -544,6 +625,7 @@ const Sudoku = (() => {
     snapshot();
     markStarted();
     game.hints++;
+    Sound.hint();
     selected = i;
     game.values[i] = game.solution[i];
     game.notes[i] = 0;
@@ -570,6 +652,7 @@ const Sudoku = (() => {
   function finish() {
     game.done = true;
     clearInterval(timer);
+    Sound.win();
     selected = null;
     boardEl.classList.add('done');
     cells.forEach((el, i) => (el.style.animationDelay = (Sudoku.rowOf(i) + Sudoku.colOf(i)) * 30 + 'ms'));
@@ -656,7 +739,16 @@ const Sudoku = (() => {
   $('hintBtn').onclick = hint;
   $('noteBtn').onclick = () => setNoteMode(!noteMode);
 
+  const muteBtn = $('muteBtn');
+  const renderMute = () => { muteBtn.textContent = Sound.muted ? '🔇' : '🔊'; };
+  const toggleMute = () => { Sound.unlock(); Sound.muted = !Sound.muted; renderMute(); };
+  muteBtn.onclick = toggleMute;
+  renderMute();
+  // 첫 사용자 입력에서 오디오 시작 (브라우저 자동재생 정책)
+  document.addEventListener('pointerdown', () => Sound.unlock(), { capture: true });
+
   window.addEventListener('keydown', e => {
+    Sound.unlock();
     if (!game) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -664,6 +756,7 @@ const Sudoku = (() => {
     if (e.code && /^(Digit|Numpad)[1-9]$/.test(e.code)) { input(Number(e.code.slice(-1))); return; }
     if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') { e.preventDefault(); erase(); return; }
     if (e.key.toLowerCase() === 'n' || e.key === 'ㅜ') { setNoteMode(!noteMode); return; }
+    if ((e.key.toLowerCase() === 'm' || e.key === 'ㅡ') && !e.repeat) { toggleMute(); return; }
     const move = { ArrowUp: -9, ArrowDown: 9, ArrowLeft: -1, ArrowRight: 1 }[e.key];
     if (move !== undefined) {
       e.preventDefault();
