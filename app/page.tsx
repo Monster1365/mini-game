@@ -72,7 +72,7 @@ export default function Home() {
                 <span className="card-body">
                   <span className="card-head">
                     <span className="card-title">{g.title}</span>
-                    <span className="play">플레이 ▶</span>
+                    <span className="play"><span className="play-text">플레이 </span>▶</span>
                   </span>
                   {g.description && <span className="card-desc">{g.description}</span>}
                 </span>

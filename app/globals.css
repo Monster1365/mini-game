@@ -223,6 +223,21 @@ a { color: inherit; }
 .card-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .play { flex: none; color: var(--accent); font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
 
+/* 모바일: 한 줄에 카드 2개, 작아진 카드에 맞춰 글자·여백 축소 */
+@media (max-width: 600px) {
+  .home { padding-left: 12px; padding-right: 12px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card { border-radius: 14px; }
+  .card:hover, .card:focus-visible { transform: none; }
+  .card-emoji { font-size: 3rem; }
+  .card-body { gap: 3px; padding: 8px 10px 10px; }
+  .card-head { gap: 6px; }
+  .card-title { font-size: 0.98rem; }
+  .card-desc { font-size: 0.74rem; line-height: 1.4; }
+  .play { font-size: 0.8rem; }
+  .play-text { display: none; }
+}
+
 /* ---------- 홈 아래 소개 · 게임 아래 소개 (SEO 본문) ---------- */
 .intro, .game-info { color: var(--muted); line-height: 1.75; }
 .intro { margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--line); }
